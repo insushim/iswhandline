@@ -54,6 +54,14 @@ export default function HomePage() {
     };
   }, [stream]);
 
+  // 스트림이 변경되면 비디오에 연결
+  useEffect(() => {
+    if (stream && videoRef.current && showCamera) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(console.error);
+    }
+  }, [stream, showCamera]);
+
   const progressSteps = [
     { percent: 10, text: '이미지 확인 중...' },
     { percent: 25, text: '손바닥 인식 중...' },
@@ -80,20 +88,37 @@ export default function HomePage() {
   // 카메라 시작
   const startCamera = async () => {
     try {
+      // 먼저 카메라 UI를 보여줌
+      setShowCamera(true);
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'environment', // 후면 카메라 우선
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          facingMode: { ideal: 'environment' }, // 후면 카메라 우선
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
       });
+
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+
+      // 비디오 요소에 스트림 연결 (약간의 딜레이 후)
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.play().catch(console.error);
+        }
+      }, 100);
+
+    } catch (err: any) {
+      console.error('Camera error:', err);
+      setShowCamera(false);
+      if (err.name === 'NotAllowedError') {
+        setError('카메라 접근 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
+      } else if (err.name === 'NotFoundError') {
+        setError('카메라를 찾을 수 없습니다.');
+      } else {
+        setError(`카메라 오류: ${err.message}`);
       }
-      setShowCamera(true);
-    } catch (err) {
-      setError('카메라 접근 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
     }
   };
 
