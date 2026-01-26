@@ -108,23 +108,36 @@ export default function HomePage() {
 
   // 사진 촬영
   const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+    if (!videoRef.current || !canvasRef.current) {
+      console.log('Video or canvas ref not available');
+      return;
+    }
 
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            stopCamera();
-            const file = new File([blob], 'palm-photo.jpg', { type: 'image/jpeg' });
-            await processImage(file);
-          }
-        }, 'image/jpeg', 0.95);
-      }
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    // 비디오가 재생 중이고 크기가 있는지 확인
+    if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      console.log('Video not ready:', video.readyState, video.videoWidth, video.videoHeight);
+      setError('카메라가 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          stopCamera();
+          const file = new File([blob], 'palm-photo.jpg', { type: 'image/jpeg' });
+          await processImage(file);
+        } else {
+          setError('사진 촬영에 실패했습니다. 다시 시도해주세요.');
+        }
+      }, 'image/jpeg', 0.95);
     }
   };
 
@@ -325,11 +338,14 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="flex-1 relative">
+            <div className="flex-1 relative overflow-hidden">
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
+                onLoadedMetadata={() => console.log('Video metadata loaded')}
+                onCanPlay={() => console.log('Video can play')}
                 className="w-full h-full object-cover"
               />
               {/* 가이드 오버레이 */}
@@ -345,13 +361,18 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="p-6 bg-black/50 flex justify-center">
+            <div className="p-6 pb-10 bg-black/50 flex justify-center safe-area-bottom">
               <button
+                type="button"
                 onClick={capturePhoto}
-                className="w-20 h-20 rounded-full bg-white flex items-center justify-center
-                         hover:scale-105 transition-transform"
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  capturePhoto();
+                }}
+                className="w-24 h-24 rounded-full bg-white flex items-center justify-center
+                         active:scale-95 transition-transform shadow-lg touch-manipulation"
               >
-                <div className="w-16 h-16 rounded-full border-4 border-slate-800" />
+                <div className="w-20 h-20 rounded-full border-4 border-slate-800" />
               </button>
             </div>
             <canvas ref={canvasRef} className="hidden" />
