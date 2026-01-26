@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Hand, Heart, Briefcase, Coins, Activity, Star,
   ChevronDown, ChevronUp, ArrowLeft, Share2,
-  Sparkles, AlertTriangle, MapPin, Gem, Calendar
+  Sparkles, AlertTriangle, MapPin, Gem, Volume2, VolumeX, Pause, Play
 } from 'lucide-react';
 import type { Reading } from '@/lib/storage';
 
@@ -17,8 +17,21 @@ interface ResultViewProps {
 export default function ResultView({ reading, onBack }: ResultViewProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [expandedSections, setExpandedSections] = useState<string[]>(['personality']);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentSection, setCurrentSection] = useState<string | null>(null);
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const { interpretation, analysis, overallScore } = reading;
+
+  // 음성 합성 정리
+  useEffect(() => {
+    return () => {
+      if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev =>
@@ -26,6 +39,107 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
         ? prev.filter(s => s !== section)
         : [...prev, section]
     );
+  };
+
+  // TTS 기능
+  const speak = (text: string, sectionId?: string) => {
+    if (!('speechSynthesis' in window)) {
+      alert('이 브라우저는 음성 읽기를 지원하지 않습니다.');
+      return;
+    }
+
+    // 이미 재생 중이면 중지
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+      if (currentSection === sectionId) {
+        setIsSpeaking(false);
+        setCurrentSection(null);
+        return;
+      }
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ko-KR';
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+
+    // 한국어 음성 찾기
+    const voices = speechSynthesis.getVoices();
+    const koreanVoice = voices.find(v => v.lang.includes('ko'));
+    if (koreanVoice) {
+      utterance.voice = koreanVoice;
+    }
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+      setCurrentSection(sectionId || null);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setCurrentSection(null);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setCurrentSection(null);
+    };
+
+    speechRef.current = utterance;
+    speechSynthesis.speak(utterance);
+  };
+
+  const pauseResume = () => {
+    if (speechSynthesis.speaking) {
+      if (isPaused) {
+        speechSynthesis.resume();
+        setIsPaused(false);
+      } else {
+        speechSynthesis.pause();
+        setIsPaused(true);
+      }
+    }
+  };
+
+  const stopSpeaking = () => {
+    speechSynthesis.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+    setCurrentSection(null);
+  };
+
+  // 전체 결과 읽기 텍스트 생성
+  const generateFullReadingText = () => {
+    let text = `손금 분석 결과입니다. 종합 점수는 100점 만점에 ${overallScore}점입니다. `;
+
+    if (interpretation?.personality?.summary) {
+      text += `성격 분석: ${interpretation.personality.summary} `;
+    }
+
+    if (interpretation?.loveReading) {
+      text += `연애운 점수는 ${interpretation.loveReading.score}점입니다. ${interpretation.loveReading.loveStyle || ''} `;
+    }
+
+    if (interpretation?.careerReading) {
+      text += `직업운 점수는 ${interpretation.careerReading.score}점입니다. ${interpretation.careerReading.workStyle || ''} `;
+    }
+
+    if (interpretation?.wealthReading) {
+      text += `재물운 점수는 ${interpretation.wealthReading.score}점입니다. ${interpretation.wealthReading.moneyMakingAbility || ''} `;
+    }
+
+    if (interpretation?.healthReading) {
+      text += `건강운 점수는 ${interpretation.healthReading.score}점입니다. ${interpretation.healthReading.stressManagement || ''} `;
+    }
+
+    if (interpretation?.advice?.immediate) {
+      text += `조언: ${interpretation.advice.immediate}`;
+    }
+
+    return text;
   };
 
   const tabs = [
@@ -90,15 +204,18 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
     icon: Icon,
     children,
     id,
-    color = 'purple'
+    color = 'purple',
+    speakText
   }: {
     title: string;
     icon: any;
     children: React.ReactNode;
     id: string;
     color?: string;
+    speakText?: string;
   }) => {
     const isExpanded = expandedSections.includes(id);
+    const isCurrentlySpeaking = currentSection === id && isSpeaking;
     const colorClasses: Record<string, string> = {
       purple: 'border-purple-500/30 hover:border-purple-400/50',
       pink: 'border-pink-500/30 hover:border-pink-400/50',
@@ -113,20 +230,37 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
         animate={{ opacity: 1, y: 0 }}
         className={`bg-white/5 backdrop-blur-sm rounded-2xl border ${colorClasses[color]} overflow-hidden`}
       >
-        <button
-          onClick={() => toggleSection(id)}
-          className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition"
-        >
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between p-4">
+          <button
+            onClick={() => toggleSection(id)}
+            className="flex items-center gap-3 flex-1 hover:bg-white/5 transition"
+          >
             <Icon className={`w-6 h-6 text-${color}-400`} />
             <h3 className="text-lg font-bold text-white">{title}</h3>
+          </button>
+          <div className="flex items-center gap-2">
+            {speakText && (
+              <button
+                onClick={() => speak(speakText, id)}
+                className={`p-2 rounded-lg transition ${
+                  isCurrentlySpeaking
+                    ? 'bg-amber-500 text-slate-900'
+                    : 'hover:bg-white/10 text-purple-300'
+                }`}
+                title={isCurrentlySpeaking ? '읽기 중지' : '음성으로 듣기'}
+              >
+                {isCurrentlySpeaking ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              </button>
+            )}
+            <button onClick={() => toggleSection(id)} className="p-2">
+              {isExpanded ? (
+                <ChevronUp className="w-5 h-5 text-purple-300" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-purple-300" />
+              )}
+            </button>
           </div>
-          {isExpanded ? (
-            <ChevronUp className="w-5 h-5 text-purple-300" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-purple-300" />
-          )}
-        </button>
+        </div>
         {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
@@ -155,7 +289,6 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
         console.log('Share cancelled');
       }
     } else {
-      // Copy to clipboard
       navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}`);
       alert('결과가 클립보드에 복사되었습니다!');
     }
@@ -174,6 +307,18 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
             <span>새로 분석하기</span>
           </button>
           <div className="flex items-center gap-2">
+            {/* TTS 전체 읽기 버튼 */}
+            <button
+              onClick={() => speak(generateFullReadingText(), 'full')}
+              className={`p-2 rounded-lg transition ${
+                currentSection === 'full' && isSpeaking
+                  ? 'bg-amber-500 text-slate-900'
+                  : 'hover:bg-white/10 text-purple-200'
+              }`}
+              title="전체 결과 음성으로 듣기"
+            >
+              <Volume2 className="w-5 h-5" />
+            </button>
             <button
               onClick={handleShare}
               className="p-2 rounded-lg hover:bg-white/10 transition text-purple-200"
@@ -183,6 +328,36 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </div>
       </div>
+
+      {/* TTS 컨트롤 바 */}
+      {isSpeaking && (
+        <motion.div
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="sticky top-[57px] z-40 bg-amber-500 px-4 py-2"
+        >
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Volume2 className="w-5 h-5 text-slate-900 animate-pulse" />
+              <span className="text-slate-900 font-medium text-sm">음성으로 읽어주는 중...</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={pauseResume}
+                className="p-2 rounded-lg bg-slate-900/20 hover:bg-slate-900/30 transition"
+              >
+                {isPaused ? <Play className="w-4 h-4 text-slate-900" /> : <Pause className="w-4 h-4 text-slate-900" />}
+              </button>
+              <button
+                onClick={stopSpeaking}
+                className="p-2 rounded-lg bg-slate-900/20 hover:bg-slate-900/30 transition"
+              >
+                <VolumeX className="w-4 h-4 text-slate-900" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Score Section */}
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -249,7 +424,13 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
         <div className="space-y-4">
           {activeTab === 'overview' && (
             <>
-              <SectionCard title="성격 분석" icon={Sparkles} id="personality" color="purple">
+              <SectionCard
+                title="성격 분석"
+                icon={Sparkles}
+                id="personality"
+                color="purple"
+                speakText={`성격 분석입니다. ${interpretation?.personality?.summary || ''} 강점은 ${interpretation?.personality?.strengths?.join(', ') || '분석 중'}입니다.`}
+              >
                 <div className="space-y-4">
                   <p className="text-purple-200">{interpretation?.personality?.summary}</p>
                   <div>
@@ -268,7 +449,13 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
                 </div>
               </SectionCard>
 
-              <SectionCard title="행운의 요소" icon={Star} id="lucky" color="yellow">
+              <SectionCard
+                title="행운의 요소"
+                icon={Star}
+                id="lucky"
+                color="yellow"
+                speakText={`행운의 요소입니다. 행운의 색상은 ${interpretation?.luckyElements?.colors?.join(', ') || '분석 중'}이고, 행운의 숫자는 ${interpretation?.luckyElements?.numbers?.join(', ') || '분석 중'}입니다.`}
+              >
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center">
@@ -308,9 +495,21 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
               {/* Special Notes */}
               {interpretation?.specialNotes && (
                 <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Star className="w-5 h-5 text-amber-400" />
-                    <h4 className="font-medium text-amber-400">특별 주목</h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-5 h-5 text-amber-400" />
+                      <h4 className="font-medium text-amber-400">특별 주목</h4>
+                    </div>
+                    <button
+                      onClick={() => speak(interpretation.specialNotes, 'special')}
+                      className={`p-2 rounded-lg transition ${
+                        currentSection === 'special' && isSpeaking
+                          ? 'bg-amber-500 text-slate-900'
+                          : 'hover:bg-white/10 text-amber-400'
+                      }`}
+                    >
+                      <Volume2 className="w-4 h-4" />
+                    </button>
                   </div>
                   <p className="text-purple-200 text-sm">{interpretation.specialNotes}</p>
                 </div>
@@ -319,7 +518,13 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           )}
 
           {activeTab === 'love' && (
-            <SectionCard title="연애운 상세" icon={Heart} id="love-detail" color="pink">
+            <SectionCard
+              title="연애운 상세"
+              icon={Heart}
+              id="love-detail"
+              color="pink"
+              speakText={`연애운입니다. ${interpretation?.loveReading?.loveStyle || ''} ${interpretation?.loveReading?.idealPartner || ''} ${interpretation?.loveReading?.advice || ''}`}
+            >
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-pink-400 mb-1">현재 연애 상태</h4>
@@ -346,7 +551,13 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           )}
 
           {activeTab === 'career' && (
-            <SectionCard title="직업운 상세" icon={Briefcase} id="career-detail" color="blue">
+            <SectionCard
+              title="직업운 상세"
+              icon={Briefcase}
+              id="career-detail"
+              color="blue"
+              speakText={`직업운입니다. ${interpretation?.careerReading?.workStyle || ''} 적합한 직업은 ${interpretation?.careerReading?.suitableCareers?.join(', ') || '분석 중'}입니다. ${interpretation?.careerReading?.careerAdvice || ''}`}
+            >
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-blue-400 mb-2">타고난 재능</h4>
@@ -385,7 +596,13 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           )}
 
           {activeTab === 'wealth' && (
-            <SectionCard title="재물운 상세" icon={Coins} id="wealth-detail" color="yellow">
+            <SectionCard
+              title="재물운 상세"
+              icon={Coins}
+              id="wealth-detail"
+              color="yellow"
+              speakText={`재물운입니다. ${interpretation?.wealthReading?.moneyMakingAbility || ''} ${interpretation?.wealthReading?.investmentStyle || ''} ${interpretation?.wealthReading?.financialAdvice || ''}`}
+            >
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-yellow-400 mb-1">돈 버는 능력</h4>
@@ -418,7 +635,13 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           )}
 
           {activeTab === 'health' && (
-            <SectionCard title="건강운 상세" icon={Activity} id="health-detail" color="green">
+            <SectionCard
+              title="건강운 상세"
+              icon={Activity}
+              id="health-detail"
+              color="green"
+              speakText={`건강운입니다. ${interpretation?.healthReading?.stressManagement || ''} 주의할 부분은 ${interpretation?.healthReading?.concernAreas?.join(', ') || '없습니다'}.`}
+            >
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-green-400 mb-2">건강한 부분</h4>
@@ -458,7 +681,13 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
 
           {activeTab === 'advice' && (
             <>
-              <SectionCard title="맞춤 조언" icon={AlertTriangle} id="advice-detail" color="purple">
+              <SectionCard
+                title="맞춤 조언"
+                icon={AlertTriangle}
+                id="advice-detail"
+                color="purple"
+                speakText={`맞춤 조언입니다. ${interpretation?.advice?.immediate || ''} 장기적으로는, ${interpretation?.advice?.longTerm || ''}`}
+              >
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
                     <h4 className="text-sm font-medium text-amber-400 mb-1">즉시 실천</h4>
@@ -490,6 +719,17 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
                 <Sparkles className="w-8 h-8 text-amber-400 mx-auto mb-3" />
                 <h4 className="text-lg font-bold text-white mb-2">오늘의 긍정 확언</h4>
                 <p className="text-amber-200 italic">"{interpretation?.advice?.affirmation || '나는 무한한 가능성을 가지고 있습니다.'}"</p>
+                <button
+                  onClick={() => speak(interpretation?.advice?.affirmation || '나는 무한한 가능성을 가지고 있습니다.', 'affirmation')}
+                  className={`mt-3 px-4 py-2 rounded-full transition inline-flex items-center gap-2 ${
+                    currentSection === 'affirmation' && isSpeaking
+                      ? 'bg-amber-500 text-slate-900'
+                      : 'bg-white/10 text-amber-200 hover:bg-white/20'
+                  }`}
+                >
+                  <Volume2 className="w-4 h-4" />
+                  음성으로 듣기
+                </button>
               </div>
             </>
           )}

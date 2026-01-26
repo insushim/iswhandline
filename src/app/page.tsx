@@ -1,54 +1,62 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hand, Upload, Camera, Sparkles, Heart, Briefcase,
   Coins, Activity, Star, ChevronRight, Info, CheckCircle,
-  AlertCircle, Settings, History, X
+  AlertCircle, History, X, Image, Lightbulb, Sun, Focus
 } from 'lucide-react';
 import { useAnalysisStore } from '@/lib/store';
 import { analyzeWithGemini, validateImageForPalmReading } from '@/lib/gemini';
-import { interpretWithGrok, interpretWithGeminiFallback } from '@/lib/grok';
+import { interpretWithGeminiFallback } from '@/lib/grok';
 import { saveReading, generateId, createThumbnail, getReadings, type Reading } from '@/lib/storage';
 import ResultView from '@/components/ResultView';
 import HistoryView from '@/components/HistoryView';
-import ApiKeyModal from '@/components/ApiKeyModal';
+
+// 내장 API 키
+const GEMINI_API_KEY = 'AIzaSyCLcBZJDcNsEhyZ4Gw-EssQpLZKCIq6Z1Y';
 
 export default function HomePage() {
   const [showResult, setShowResult] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [showPhotoTips, setShowPhotoTips] = useState(false);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [selectedReading, setSelectedReading] = useState<Reading | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const {
     isAnalyzing,
     progress,
     progressText,
     error,
-    currentReadingId,
-    interpretation,
-    geminiApiKey,
-    grokApiKey,
     setAnalyzing,
     setProgress,
     setError,
     setResult,
-    setApiKeys,
     reset
   } = useAnalysisStore();
 
-  // 로컬 스토리지에서 API 키 로드
+  // 히스토리 로드
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedGemini = localStorage.getItem('gemini_api_key') || '';
-      const savedGrok = localStorage.getItem('grok_api_key') || '';
-      setApiKeys(savedGemini, savedGrok);
       setReadings(getReadings());
     }
-  }, [setApiKeys]);
+  }, []);
+
+  // 카메라 정리
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
 
   const progressSteps = [
     { percent: 10, text: '이미지 확인 중...' },
@@ -71,18 +79,61 @@ export default function HomePage() {
       }
     }, 2000);
     return interval;
-  }, [setProgress, progressSteps]);
+  }, [setProgress]);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
-
-    // API 키 확인
-    if (!geminiApiKey) {
-      setShowApiKeyModal(true);
-      return;
+  // 카메라 시작
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment', // 후면 카메라 우선
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      setShowCamera(true);
+    } catch (err) {
+      setError('카메라 접근 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
     }
+  };
 
+  // 카메라 중지
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  // 사진 촬영
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            stopCamera();
+            const file = new File([blob], 'palm-photo.jpg', { type: 'image/jpeg' });
+            await processImage(file);
+          }
+        }, 'image/jpeg', 0.95);
+      }
+    }
+  };
+
+  // 이미지 처리
+  const processImage = async (file: File) => {
     setAnalyzing(true);
     setError(null);
     reset();
@@ -100,7 +151,7 @@ export default function HomePage() {
 
       // 1. Gemini Vision으로 손금 분석
       setProgress(25, '손바닥 이미지 분석 중...');
-      const analysis = await analyzeWithGemini(base64Image, mimeType, geminiApiKey);
+      const analysis = await analyzeWithGemini(base64Image, mimeType, GEMINI_API_KEY);
 
       // 유효성 검사
       const validation = validateImageForPalmReading(analysis);
@@ -108,20 +159,9 @@ export default function HomePage() {
         throw new Error(validation.message);
       }
 
-      // 2. Grok (또는 Gemini)으로 해석 생성
+      // 2. Gemini로 해석 생성
       setProgress(70, 'AI 해석 생성 중...');
-      let interpretation;
-
-      if (grokApiKey) {
-        try {
-          interpretation = await interpretWithGrok(analysis, grokApiKey);
-        } catch (grokError) {
-          console.warn('Grok failed, falling back to Gemini:', grokError);
-          interpretation = await interpretWithGeminiFallback(analysis, geminiApiKey);
-        }
-      } else {
-        interpretation = await interpretWithGeminiFallback(analysis, geminiApiKey);
-      }
+      const interpretation = await interpretWithGeminiFallback(analysis, GEMINI_API_KEY);
 
       // 3. 결과 저장
       const readingId = generateId();
@@ -151,7 +191,13 @@ export default function HomePage() {
       setError(err.message || '분석 중 오류가 발생했습니다.');
       setAnalyzing(false);
     }
-  }, [geminiApiKey, grokApiKey, setAnalyzing, setError, setProgress, setResult, reset, simulateProgress]);
+  };
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+    await processImage(file);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -170,11 +216,36 @@ export default function HomePage() {
     { icon: Activity, title: '건강운', desc: '건강 상태와 주의점을 알려드립니다', color: 'text-green-400' },
   ];
 
-  const tips = [
-    '손바닥을 펴고 밝은 조명 아래에서 촬영하세요',
-    '카메라를 손바닥 바로 위에서 수직으로 촬영하세요',
-    '손금이 선명하게 보이도록 초점을 맞추세요',
-    '주로 사용하는 손(오른손잡이는 오른손)을 촬영하세요',
+  const photoTips = [
+    {
+      icon: Sun,
+      title: '밝은 조명',
+      desc: '자연광이나 밝은 조명 아래에서 촬영하세요. 그림자가 지면 손금이 잘 안 보여요.'
+    },
+    {
+      icon: Hand,
+      title: '손바닥 펴기',
+      desc: '손가락을 자연스럽게 펴고, 손바닥이 평평하게 보이도록 해주세요.'
+    },
+    {
+      icon: Focus,
+      title: '초점 맞추기',
+      desc: '손금이 선명하게 보이도록 카메라 초점을 맞추세요. 흔들리지 않게 고정!'
+    },
+    {
+      icon: Camera,
+      title: '수직 촬영',
+      desc: '카메라를 손바닥 바로 위에서 수직으로 내려다보며 촬영하세요.'
+    },
+  ];
+
+  const detailedTips = [
+    '✋ 주로 사용하는 손을 촬영하세요 (오른손잡이는 오른손)',
+    '📏 손바닥 전체가 화면에 들어오도록 거리를 조절하세요',
+    '🧴 손이 너무 건조하면 손금이 잘 안 보여요, 약간 촉촉하게',
+    '🚫 반지나 액세서리는 빼고 촬영하면 더 정확해요',
+    '📱 후면 카메라가 화질이 더 좋으니 추천드려요',
+    '🔄 처음 결과가 이상하면 다시 촬영해보세요'
   ];
 
   const handleViewHistory = (reading: Reading) => {
@@ -210,22 +281,158 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900">
-      {/* API Key Modal */}
-      <ApiKeyModal
-        isOpen={showApiKeyModal}
-        onClose={() => setShowApiKeyModal(false)}
-        geminiKey={geminiApiKey}
-        grokKey={grokApiKey}
-        onSave={(gemini, grok) => {
-          setApiKeys(gemini, grok);
-          localStorage.setItem('gemini_api_key', gemini);
-          localStorage.setItem('grok_api_key', grok);
-          setShowApiKeyModal(false);
-        }}
-      />
+      {/* 카메라 모달 */}
+      <AnimatePresence>
+        {showCamera && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black flex flex-col"
+          >
+            <div className="flex items-center justify-between p-4 bg-black/50">
+              <h2 className="text-white font-bold">손바닥 촬영</h2>
+              <button
+                onClick={stopCamera}
+                className="p-2 rounded-full bg-white/10 text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              {/* 가이드 오버레이 */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-72 h-96 border-2 border-amber-400/50 rounded-3xl flex items-center justify-center">
+                  <Hand className="w-24 h-24 text-amber-400/30" />
+                </div>
+              </div>
+              <div className="absolute bottom-4 left-4 right-4 text-center">
+                <p className="text-amber-200 text-sm bg-black/50 rounded-lg px-3 py-2">
+                  손바닥을 가이드 안에 맞추고 촬영하세요
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 bg-black/50 flex justify-center">
+              <button
+                onClick={capturePhoto}
+                className="w-20 h-20 rounded-full bg-white flex items-center justify-center
+                         hover:scale-105 transition-transform"
+              >
+                <div className="w-16 h-16 rounded-full border-4 border-slate-800" />
+              </button>
+            </div>
+            <canvas ref={canvasRef} className="hidden" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 촬영 팁 모달 */}
+      <AnimatePresence>
+        {showPhotoTips && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowPhotoTips(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-slate-900 rounded-2xl border border-purple-500/30 overflow-hidden max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-purple-500/20 sticky top-0 bg-slate-900">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5 text-amber-400" />
+                  <h2 className="text-lg font-bold text-white">손바닥 촬영 가이드</h2>
+                </div>
+                <button
+                  onClick={() => setShowPhotoTips(false)}
+                  className="p-1 rounded-lg hover:bg-white/10 transition text-purple-300"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-6">
+                {/* 핵심 팁 */}
+                <div className="grid grid-cols-2 gap-3">
+                  {photoTips.map((tip, index) => (
+                    <motion.div
+                      key={tip.title}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20"
+                    >
+                      <tip.icon className="w-8 h-8 text-amber-400 mb-2" />
+                      <h3 className="font-bold text-white text-sm mb-1">{tip.title}</h3>
+                      <p className="text-purple-200 text-xs">{tip.desc}</p>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* 좋은 예시 vs 나쁜 예시 */}
+                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+                  <h3 className="font-bold text-green-400 mb-2 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    좋은 사진 예시
+                  </h3>
+                  <p className="text-green-200 text-sm">
+                    손바닥이 밝고, 손금이 선명하게 보이며, 손가락 끝까지 다 나온 사진
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+                  <h3 className="font-bold text-red-400 mb-2 flex items-center gap-2">
+                    <X className="w-4 h-4" />
+                    피해야 할 사진
+                  </h3>
+                  <ul className="text-red-200 text-sm space-y-1">
+                    <li>• 어둡거나 그림자가 진 사진</li>
+                    <li>• 흔들려서 흐릿한 사진</li>
+                    <li>• 손이 일부만 나온 사진</li>
+                    <li>• 손을 쥐거나 구부린 사진</li>
+                  </ul>
+                </div>
+
+                {/* 추가 팁 */}
+                <div>
+                  <h3 className="font-bold text-white mb-3">💡 추가 팁</h3>
+                  <ul className="space-y-2">
+                    {detailedTips.map((tip, index) => (
+                      <li key={index} className="text-purple-200 text-sm">{tip}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-purple-500/20">
+                <button
+                  onClick={() => setShowPhotoTips(false)}
+                  className="w-full py-3 rounded-xl bg-amber-500 text-slate-900 font-bold
+                           hover:bg-amber-400 transition"
+                >
+                  확인했어요!
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-lg border-b border-purple-500/20">
+      <div className="fixed top-0 left-0 right-0 z-40 bg-slate-900/80 backdrop-blur-lg border-b border-purple-500/20">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Hand className="w-6 h-6 text-amber-400" />
@@ -238,13 +445,6 @@ export default function HomePage() {
               title="분석 기록"
             >
               <History className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setShowApiKeyModal(true)}
-              className="p-2 rounded-lg hover:bg-white/10 transition text-purple-200"
-              title="API 설정"
-            >
-              <Settings className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -335,37 +535,45 @@ export default function HomePage() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <div
-                  {...getRootProps()}
-                  className={`
-                    border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer
-                    transition-all duration-300
-                    ${isDragActive
-                      ? 'border-amber-400 bg-amber-400/10'
-                      : 'border-purple-500/50 hover:border-purple-400 hover:bg-purple-500/10'
-                    }
-                  `}
-                >
-                  <input {...getInputProps()} />
-                  <div className="flex justify-center mb-4">
-                    {isDragActive ? (
-                      <Upload className="w-16 h-16 text-amber-400 animate-bounce" />
-                    ) : (
-                      <Camera className="w-16 h-16 text-purple-300" />
-                    )}
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">
-                    {isDragActive ? '여기에 놓으세요!' : '손바닥 사진을 업로드하세요'}
-                  </h3>
-                  <p className="text-purple-300 mb-4">
-                    이미지를 드래그하거나 클릭하여 선택하세요
-                  </p>
-                  <div className="flex justify-center gap-2 text-sm text-purple-400">
-                    <span>JPG, PNG, WebP</span>
-                    <span>•</span>
-                    <span>최대 10MB</span>
+                {/* 카메라 & 갤러리 버튼 */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <button
+                    onClick={startCamera}
+                    className="flex flex-col items-center gap-3 p-6 rounded-2xl
+                             bg-gradient-to-br from-amber-500/20 to-orange-500/20
+                             border border-amber-500/30 hover:border-amber-400
+                             transition-all hover:scale-[1.02]"
+                  >
+                    <Camera className="w-12 h-12 text-amber-400" />
+                    <span className="text-white font-bold">카메라로 촬영</span>
+                    <span className="text-amber-200/70 text-xs">직접 손바닥을 찍어보세요</span>
+                  </button>
+
+                  <div
+                    {...getRootProps()}
+                    className={`flex flex-col items-center gap-3 p-6 rounded-2xl cursor-pointer
+                              bg-gradient-to-br from-purple-500/20 to-indigo-500/20
+                              border border-purple-500/30 hover:border-purple-400
+                              transition-all hover:scale-[1.02]
+                              ${isDragActive ? 'border-amber-400 bg-amber-400/10' : ''}`}
+                  >
+                    <input {...getInputProps()} />
+                    <Image className="w-12 h-12 text-purple-400" />
+                    <span className="text-white font-bold">갤러리에서 선택</span>
+                    <span className="text-purple-200/70 text-xs">이미지를 업로드하세요</span>
                   </div>
                 </div>
+
+                {/* 촬영 가이드 버튼 */}
+                <button
+                  onClick={() => setShowPhotoTips(true)}
+                  className="w-full p-4 rounded-xl bg-purple-500/10 border border-purple-500/20
+                           hover:border-purple-400/50 transition flex items-center justify-center gap-2"
+                >
+                  <Lightbulb className="w-5 h-5 text-amber-400" />
+                  <span className="text-purple-200">손바닥 촬영 가이드 보기</span>
+                  <ChevronRight className="w-4 h-4 text-purple-400" />
+                </button>
 
                 {error && (
                   <motion.div
@@ -378,19 +586,29 @@ export default function HomePage() {
                   </motion.div>
                 )}
 
-                {/* Photo Tips */}
+                {/* 간단 팁 */}
                 <div className="mt-6 p-4 rounded-xl bg-purple-500/10">
                   <div className="flex items-center gap-2 mb-3">
                     <Info className="w-5 h-5 text-amber-400" />
-                    <h4 className="font-medium text-white">좋은 사진 촬영 팁</h4>
+                    <h4 className="font-medium text-white">빠른 팁</h4>
                   </div>
                   <ul className="grid sm:grid-cols-2 gap-2">
-                    {tips.map((tip, index) => (
-                      <li key={index} className="flex items-start gap-2 text-sm text-purple-200">
-                        <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                        {tip}
-                      </li>
-                    ))}
+                    <li className="flex items-start gap-2 text-sm text-purple-200">
+                      <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                      밝은 조명에서 촬영하세요
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-purple-200">
+                      <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                      손바닥을 활짝 펴세요
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-purple-200">
+                      <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                      카메라를 수직으로 내려보세요
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-purple-200">
+                      <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                      손금이 선명하게 보이게 초점 맞추기
+                    </li>
                   </ul>
                 </div>
               </motion.div>
@@ -461,7 +679,7 @@ export default function HomePage() {
       <footer className="border-t border-purple-500/20 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <p className="text-purple-400 text-sm">
-            2024 PalmSeer AI. 손금 분석은 재미와 자기 성찰을 위한 것입니다.
+            © 2024 PalmSeer AI. 손금 분석은 재미와 자기 성찰을 위한 것입니다.
           </p>
         </div>
       </footer>
