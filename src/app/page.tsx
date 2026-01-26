@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hand, Upload, Camera, Sparkles, Heart, Briefcase,
   Coins, Activity, Star, ChevronRight, Info, CheckCircle,
-  AlertCircle, History, X, Image, Lightbulb, Sun, Focus
+  AlertCircle, History, X, Image, Lightbulb, Sun, Focus, Settings
 } from 'lucide-react';
 import { useAnalysisStore } from '@/lib/store';
 import { analyzeWithGemini, validateImageForPalmReading } from '@/lib/gemini';
@@ -14,18 +14,27 @@ import { interpretWithGeminiFallback } from '@/lib/grok';
 import { saveReading, generateId, createThumbnail, getReadings, type Reading } from '@/lib/storage';
 import ResultView from '@/components/ResultView';
 import HistoryView from '@/components/HistoryView';
+import ApiKeyModal from '@/components/ApiKeyModal';
 
-// 내장 API 키
-const GEMINI_API_KEY = 'AIzaSyCLcBZJDcNsEhyZ4Gw-EssQpLZKCIq6Z1Y';
+// API 키는 환경변수 또는 사용자 입력으로 받음
+const getApiKey = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('gemini_api_key') || '';
+  }
+  return '';
+};
 
 export default function HomePage() {
   const [showResult, setShowResult] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showPhotoTips, setShowPhotoTips] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [selectedReading, setSelectedReading] = useState<Reading | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [grokApiKey, setGrokApiKey] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -42,10 +51,12 @@ export default function HomePage() {
     reset
   } = useAnalysisStore();
 
-  // 히스토리 로드
+  // 히스토리 및 API 키 로드
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setReadings(getReadings());
+      setGeminiApiKey(localStorage.getItem('gemini_api_key') || '');
+      setGrokApiKey(localStorage.getItem('grok_api_key') || '');
     }
   }, []);
 
@@ -134,6 +145,12 @@ export default function HomePage() {
 
   // 이미지 처리
   const processImage = async (file: File) => {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
+
     setAnalyzing(true);
     setError(null);
     reset();
@@ -151,7 +168,7 @@ export default function HomePage() {
 
       // 1. Gemini Vision으로 손금 분석
       setProgress(25, '손바닥 이미지 분석 중...');
-      const analysis = await analyzeWithGemini(base64Image, mimeType, GEMINI_API_KEY);
+      const analysis = await analyzeWithGemini(base64Image, mimeType, apiKey);
 
       // 유효성 검사
       const validation = validateImageForPalmReading(analysis);
@@ -161,7 +178,7 @@ export default function HomePage() {
 
       // 2. Gemini로 해석 생성
       setProgress(70, 'AI 해석 생성 중...');
-      const interpretation = await interpretWithGeminiFallback(analysis, GEMINI_API_KEY);
+      const interpretation = await interpretWithGeminiFallback(analysis, apiKey);
 
       // 3. 결과 저장
       const readingId = generateId();
@@ -252,6 +269,14 @@ export default function HomePage() {
     setSelectedReading(reading);
     setShowHistory(false);
     setShowResult(true);
+  };
+
+  const handleSaveApiKeys = (gemini: string, grok: string) => {
+    localStorage.setItem('gemini_api_key', gemini);
+    localStorage.setItem('grok_api_key', grok);
+    setGeminiApiKey(gemini);
+    setGrokApiKey(grok);
+    setShowApiKeyModal(false);
   };
 
   // 결과 화면
@@ -439,6 +464,13 @@ export default function HomePage() {
             <span className="font-bold text-white">PalmSeer AI</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowApiKeyModal(true)}
+              className="p-2 rounded-lg hover:bg-white/10 transition text-purple-200"
+              title="API 키 설정"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
             <button
               onClick={() => setShowHistory(true)}
               className="p-2 rounded-lg hover:bg-white/10 transition text-purple-200"
@@ -683,6 +715,15 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
+
+      {/* API Key Modal */}
+      <ApiKeyModal
+        isOpen={showApiKeyModal}
+        onClose={() => setShowApiKeyModal(false)}
+        geminiKey={geminiApiKey}
+        grokKey={grokApiKey}
+        onSave={handleSaveApiKeys}
+      />
     </div>
   );
 }
