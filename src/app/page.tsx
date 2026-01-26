@@ -6,35 +6,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hand, Upload, Camera, Sparkles, Heart, Briefcase,
   Coins, Activity, Star, ChevronRight, Info, CheckCircle,
-  AlertCircle, History, X, Image, Lightbulb, Sun, Focus, Settings
+  AlertCircle, History, X, Image, Lightbulb, Sun, Focus
 } from 'lucide-react';
 import { useAnalysisStore } from '@/lib/store';
-import { analyzeWithGemini, validateImageForPalmReading } from '@/lib/gemini';
-import { interpretWithGeminiFallback } from '@/lib/grok';
+import { validateImageForPalmReading } from '@/lib/gemini';
 import { saveReading, generateId, createThumbnail, getReadings, type Reading } from '@/lib/storage';
 import ResultView from '@/components/ResultView';
 import HistoryView from '@/components/HistoryView';
-import ApiKeyModal from '@/components/ApiKeyModal';
-
-// API 키는 환경변수 또는 사용자 입력으로 받음
-const getApiKey = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('gemini_api_key') || '';
-  }
-  return '';
-};
 
 export default function HomePage() {
   const [showResult, setShowResult] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showPhotoTips, setShowPhotoTips] = useState(false);
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [selectedReading, setSelectedReading] = useState<Reading | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [geminiApiKey, setGeminiApiKey] = useState('');
-  const [grokApiKey, setGrokApiKey] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,12 +38,10 @@ export default function HomePage() {
     reset
   } = useAnalysisStore();
 
-  // 히스토리 및 API 키 로드
+  // 히스토리 로드
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setReadings(getReadings());
-      setGeminiApiKey(localStorage.getItem('gemini_api_key') || '');
-      setGrokApiKey(localStorage.getItem('grok_api_key') || '');
     }
   }, []);
 
@@ -143,14 +128,8 @@ export default function HomePage() {
     }
   };
 
-  // 이미지 처리
+  // 이미지 처리 - 서버 API 호출
   const processImage = async (file: File) => {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      setShowApiKeyModal(true);
-      return;
-    }
-
     setAnalyzing(true);
     setError(null);
     reset();
@@ -166,9 +145,24 @@ export default function HomePage() {
       const mimeType = file.type;
       const fullBase64 = `data:${mimeType};base64,${base64Image}`;
 
-      // 1. Gemini Vision으로 손금 분석
+      // 1. 서버 API로 손금 분석 요청
       setProgress(25, '손바닥 이미지 분석 중...');
-      const analysis = await analyzeWithGemini(base64Image, mimeType, apiKey);
+      const analyzeResponse = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: base64Image,
+          mimeType: mimeType,
+          action: 'analyze'
+        })
+      });
+
+      if (!analyzeResponse.ok) {
+        const errorData = await analyzeResponse.json();
+        throw new Error(errorData.error || '분석 중 오류가 발생했습니다.');
+      }
+
+      const { analysis } = await analyzeResponse.json();
 
       // 유효성 검사
       const validation = validateImageForPalmReading(analysis);
@@ -176,9 +170,23 @@ export default function HomePage() {
         throw new Error(validation.message);
       }
 
-      // 2. Gemini로 해석 생성
+      // 2. 서버 API로 해석 생성 요청
       setProgress(70, 'AI 해석 생성 중...');
-      const interpretation = await interpretWithGeminiFallback(analysis, apiKey);
+      const interpretResponse = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          analysis: analysis,
+          action: 'interpret'
+        })
+      });
+
+      if (!interpretResponse.ok) {
+        const errorData = await interpretResponse.json();
+        throw new Error(errorData.error || '해석 중 오류가 발생했습니다.');
+      }
+
+      const { interpretation } = await interpretResponse.json();
 
       // 3. 결과 저장
       const readingId = generateId();
@@ -269,14 +277,6 @@ export default function HomePage() {
     setSelectedReading(reading);
     setShowHistory(false);
     setShowResult(true);
-  };
-
-  const handleSaveApiKeys = (gemini: string, grok: string) => {
-    localStorage.setItem('gemini_api_key', gemini);
-    localStorage.setItem('grok_api_key', grok);
-    setGeminiApiKey(gemini);
-    setGrokApiKey(grok);
-    setShowApiKeyModal(false);
   };
 
   // 결과 화면
@@ -464,13 +464,6 @@ export default function HomePage() {
             <span className="font-bold text-white">PalmSeer AI</span>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowApiKeyModal(true)}
-              className="p-2 rounded-lg hover:bg-white/10 transition text-purple-200"
-              title="API 키 설정"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
             <button
               onClick={() => setShowHistory(true)}
               className="p-2 rounded-lg hover:bg-white/10 transition text-purple-200"
@@ -715,15 +708,6 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
-
-      {/* API Key Modal */}
-      <ApiKeyModal
-        isOpen={showApiKeyModal}
-        onClose={() => setShowApiKeyModal(false)}
-        geminiKey={geminiApiKey}
-        grokKey={grokApiKey}
-        onSave={handleSaveApiKeys}
-      />
     </div>
   );
 }

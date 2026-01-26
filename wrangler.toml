@@ -1,5 +1,8 @@
 name = "palm-seer-ai"
 compatibility_date = "2024-12-24"
-pages_build_output_dir = "./out"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
 
-# No functions needed - purely static site
+[vars]
+# 환경변수는 Cloudflare 대시보드에서 설정 (보안)
+# GEMINI_API_KEY = "..."
