@@ -209,11 +209,21 @@ export default function HomePage() {
       });
 
       if (!analyzeResponse.ok) {
-        const errorData = await analyzeResponse.json();
-        throw new Error(errorData.error || '분석 중 오류가 발생했습니다.');
+        // 504 타임아웃 등 서버 에러 처리
+        if (analyzeResponse.status === 504) {
+          throw new Error('서버 응답 시간이 초과되었습니다. 다시 시도해주세요.');
+        }
+        try {
+          const errorData = await analyzeResponse.json();
+          throw new Error(errorData.error || '분석 중 오류가 발생했습니다.');
+        } catch (e: any) {
+          if (e.message.includes('서버')) throw e;
+          throw new Error(`서버 오류 (${analyzeResponse.status}): 다시 시도해주세요.`);
+        }
       }
 
-      const { analysis } = await analyzeResponse.json();
+      const analyzeData = await analyzeResponse.json();
+      const analysis = analyzeData.analysis;
 
       // 유효성 검사
       const validation = validateImageForPalmReading(analysis);
@@ -233,11 +243,20 @@ export default function HomePage() {
       });
 
       if (!interpretResponse.ok) {
-        const errorData = await interpretResponse.json();
-        throw new Error(errorData.error || '해석 중 오류가 발생했습니다.');
+        if (interpretResponse.status === 504) {
+          throw new Error('서버 응답 시간이 초과되었습니다. 다시 시도해주세요.');
+        }
+        try {
+          const errorData = await interpretResponse.json();
+          throw new Error(errorData.error || '해석 중 오류가 발생했습니다.');
+        } catch (e: any) {
+          if (e.message.includes('서버')) throw e;
+          throw new Error(`서버 오류 (${interpretResponse.status}): 다시 시도해주세요.`);
+        }
       }
 
-      const { interpretation } = await interpretResponse.json();
+      const interpretData = await interpretResponse.json();
+      const interpretation = interpretData.interpretation;
 
       // 3. 결과 저장
       const readingId = generateId();
