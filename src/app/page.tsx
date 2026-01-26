@@ -123,58 +123,67 @@ export default function HomePage() {
 
   // 사진 촬영
   const capturePhoto = async () => {
-    if (!videoRef.current || !canvasRef.current) {
-      setError('카메라가 준비되지 않았습니다.');
+    try {
+      if (!videoRef.current || !canvasRef.current) {
+        setError('카메라가 준비되지 않았습니다.');
+        stopCamera();
+        return;
+      }
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      // 비디오 크기 확인
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        setError('카메라 영상을 가져올 수 없습니다. 다시 시도해주세요.');
+        stopCamera();
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setError('캔버스 오류가 발생했습니다.');
+        stopCamera();
+        return;
+      }
+
+      ctx.drawImage(video, 0, 0);
+
+      // blob으로 변환 (카메라 닫기 전에 처리)
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, 'image/jpeg', 0.9);
+      });
+
+      // 카메라 닫기 (blob 생성 후)
       stopCamera();
-      return;
-    }
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
+      if (!blob) {
+        setError('사진 촬영에 실패했습니다. 다시 시도해주세요.');
+        return;
+      }
 
-    // 비디오 크기 확인
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      setError('카메라 영상을 가져올 수 없습니다. 다시 시도해주세요.');
+      const file = new File([blob], 'palm-photo.jpg', { type: 'image/jpeg' });
+
+      // processImage 호출
+      await processImage(file);
+    } catch (err: any) {
+      console.error('촬영 오류:', err);
+      setError(`촬영 오류: ${err.message || '알 수 없는 오류'}`);
       stopCamera();
-      return;
     }
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      setError('캔버스 오류가 발생했습니다.');
-      stopCamera();
-      return;
-    }
-
-    ctx.drawImage(video, 0, 0);
-
-    // blob으로 변환 (카메라 닫기 전에 처리)
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, 'image/jpeg', 0.9);
-    });
-
-    // 카메라 닫기 (blob 생성 후)
-    stopCamera();
-
-    if (!blob) {
-      setError('사진 촬영에 실패했습니다. 다시 시도해주세요.');
-      return;
-    }
-
-    const file = new File([blob], 'palm-photo.jpg', { type: 'image/jpeg' });
-
-    // processImage 호출 (이미 setAnalyzing(true)를 내부에서 호출함)
-    await processImage(file);
   };
 
   // 이미지 처리 - 서버 API 호출
   const processImage = async (file: File) => {
-    setAnalyzing(true);
+    // 먼저 에러와 결과 초기화
     setError(null);
-    reset();
+
+    // 분석 시작
+    setAnalyzing(true);
+    setProgress(5, '이미지 준비 중...');
 
     const progressInterval = simulateProgress();
 
@@ -255,7 +264,9 @@ export default function HomePage() {
 
     } catch (err: any) {
       clearInterval(progressInterval);
-      setError(err.message || '분석 중 오류가 발생했습니다.');
+      console.error('분석 오류:', err);
+      const errorMessage = err.message || '분석 중 오류가 발생했습니다.';
+      setError(`오류: ${errorMessage}`);
       setAnalyzing(false);
     }
   };
