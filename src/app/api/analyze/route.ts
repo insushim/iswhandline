@@ -140,8 +140,7 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // gemini-2.0-flash 모델 사용 (안정적이고 빠름)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
 
     // JSON 파싱 헬퍼 함수
     const parseJsonResponse = (text: string): any => {
