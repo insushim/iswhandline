@@ -367,7 +367,10 @@ export default function HomePage() {
                   <Hand className="w-24 h-24 text-amber-400/30" />
                 </div>
               </div>
-              <div className="absolute bottom-4 left-4 right-4 text-center">
+              <div className="absolute bottom-4 left-4 right-4 text-center space-y-2">
+                <p className="text-white text-base font-bold bg-amber-600/80 rounded-lg px-3 py-2">
+                  👋 오른손잡이 → 오른손 / 왼손잡이 → 왼손
+                </p>
                 <p className="text-amber-200 text-sm bg-black/50 rounded-lg px-3 py-2">
                   손바닥을 가이드 안에 맞추고 촬영하세요
                 </p>
