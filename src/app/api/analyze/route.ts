@@ -140,7 +140,31 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    // gemini-2.0-flash 모델 사용 (안정적이고 빠름)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    // JSON 파싱 헬퍼 함수
+    const parseJsonResponse = (text: string): any => {
+      // 마크다운 코드 블록 제거
+      let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+      // JSON 객체 추출
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('JSON 형식을 찾을 수 없습니다.');
+      }
+
+      try {
+        return JSON.parse(jsonMatch[0]);
+      } catch (e) {
+        // JSON 파싱 실패 시 일반적인 문제 수정 시도
+        let fixedJson = jsonMatch[0]
+          .replace(/,\s*}/g, '}')  // trailing comma 제거
+          .replace(/,\s*]/g, ']')  // trailing comma 제거
+          .replace(/'/g, '"');     // single quote to double quote
+        return JSON.parse(fixedJson);
+      }
+    };
 
     if (action === 'analyze') {
       // 손금 분석
@@ -157,16 +181,14 @@ export async function POST(request: NextRequest) {
       const response = await result.response;
       const text = response.text();
 
-      // JSON 파싱
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      if (!text || text.trim().length === 0) {
         return NextResponse.json(
-          { error: '분석 결과를 파싱할 수 없습니다.' },
+          { error: '손금 분석 결과가 비어있습니다. 다시 시도해주세요.' },
           { status: 500 }
         );
       }
 
-      const analysis = JSON.parse(jsonMatch[0]);
+      const analysis = parseJsonResponse(text);
       return NextResponse.json({ analysis });
 
     } else if (action === 'interpret') {
@@ -177,15 +199,14 @@ export async function POST(request: NextRequest) {
       const response = await result.response;
       const text = response.text();
 
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      if (!text || text.trim().length === 0) {
         return NextResponse.json(
-          { error: '해석 결과를 파싱할 수 없습니다.' },
+          { error: '해석 결과가 비어있습니다. 다시 시도해주세요.' },
           { status: 500 }
         );
       }
 
-      const interpretation = JSON.parse(jsonMatch[0]);
+      const interpretation = parseJsonResponse(text);
       return NextResponse.json({ interpretation });
     }
 
