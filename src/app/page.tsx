@@ -54,13 +54,12 @@ export default function HomePage() {
     };
   }, [stream]);
 
-  // 스트림이 변경되면 비디오에 연결
+  // showCamera가 true가 되고 stream이 있으면 비디오에 연결
   useEffect(() => {
-    if (stream && videoRef.current && showCamera) {
+    if (showCamera && stream && videoRef.current) {
       videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(console.error);
     }
-  }, [stream, showCamera]);
+  }, [showCamera, stream]);
 
   const progressSteps = [
     { percent: 10, text: '이미지 확인 중...' },
@@ -88,26 +87,16 @@ export default function HomePage() {
   // 카메라 시작
   const startCamera = async () => {
     try {
-      // 먼저 카메라 UI를 보여줌
-      setShowCamera(true);
-
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: 'environment' }, // 후면 카메라 우선
+          facingMode: 'environment', // 후면 카메라
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
       });
 
       setStream(mediaStream);
-
-      // 비디오 요소에 스트림 연결 (약간의 딜레이 후)
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          videoRef.current.play().catch(console.error);
-        }
-      }, 100);
+      setShowCamera(true);
 
     } catch (err: any) {
       console.error('Camera error:', err);
@@ -121,6 +110,7 @@ export default function HomePage() {
       }
     }
   };
+
 
   // 카메라 중지
   const stopCamera = () => {
@@ -369,8 +359,6 @@ export default function HomePage() {
                 autoPlay
                 playsInline
                 muted
-                onLoadedMetadata={() => console.log('Video metadata loaded')}
-                onCanPlay={() => console.log('Video can play')}
                 className="w-full h-full object-cover"
               />
               {/* 가이드 오버레이 */}
