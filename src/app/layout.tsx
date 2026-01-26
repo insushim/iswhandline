@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     description: 'AI가 당신의 손금을 분석하여 전문가 수준의 해석을 제공합니다.',
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.svg',
   },
 };
 

@@ -514,7 +514,7 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <div className="relative overflow-hidden pt-16">
-        <div className="absolute inset-0 bg-[url('/stars.png')] opacity-20" />
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-800/20 to-transparent" />
         <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
