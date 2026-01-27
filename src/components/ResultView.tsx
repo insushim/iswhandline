@@ -877,6 +877,195 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
+        {/* 9. 특수 손금 분석 */}
+        <Section title="9. 특수 손금 분석" icon={Sparkles} color="amber">
+          <div className="space-y-4">
+            {/* 막손금 (Simian Line) */}
+            {analysis?.specialMarks?.simianLine && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 rounded-xl bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500/50"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🐵</span>
+                  <h4 className="text-lg font-bold text-red-400">막손금 (원숭이선) 발견!</h4>
+                  <span className="px-2 py-0.5 bg-red-500/30 text-red-300 text-xs rounded-full">희귀 1-4%</span>
+                </div>
+                <p className="text-purple-200 text-sm mb-3">
+                  {analysis.specialMarks.simianLineDescription || '두뇌선과 감정선이 하나로 합쳐진 매우 특별한 손금입니다.'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 bg-green-500/10 rounded-lg">
+                    <span className="text-green-400 font-medium">✓ 강점</span>
+                    <p className="text-green-200 mt-1">극도의 집중력, 강한 의지력, 전문 분야 성취</p>
+                  </div>
+                  <div className="p-2 bg-orange-500/10 rounded-lg">
+                    <span className="text-orange-400 font-medium">△ 주의</span>
+                    <p className="text-orange-200 mt-1">유연성 부족, 흑백논리, 스트레스 관리</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* 시드니선 */}
+            {analysis?.specialMarks?.sydneyLine && (
+              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">🧠</span>
+                  <h4 className="font-bold text-blue-400">시드니선 발견</h4>
+                  <span className="px-2 py-0.5 bg-blue-500/30 text-blue-300 text-xs rounded-full">5-10%</span>
+                </div>
+                <p className="text-purple-200 text-sm">
+                  {analysis.specialMarks.sydneyLineDescription || '두뇌선이 손바닥 끝까지 연장되어 있습니다. 높은 지능과 분석력을 가졌으나 과잉 사고와 완벽주의 경향이 있습니다.'}
+                </p>
+              </div>
+            )}
+
+            {/* M자 손금 */}
+            {analysis?.specialMarks?.mSign && (
+              <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">💰</span>
+                  <h4 className="font-bold text-yellow-400">M자 손금 발견</h4>
+                  <span className="px-2 py-0.5 bg-yellow-500/30 text-yellow-300 text-xs rounded-full">희귀</span>
+                </div>
+                <p className="text-purple-200 text-sm">
+                  {analysis.specialMarks.mSignDescription || '생명선, 두뇌선, 감정선, 운명선이 M자를 형성합니다. 뛰어난 직관력과 재물운, 자수성가 운이 있습니다.'}
+                </p>
+              </div>
+            )}
+
+            {/* 작가의 포크 */}
+            {analysis?.specialMarks?.writersFork && (
+              <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">✍️</span>
+                  <h4 className="font-bold text-purple-400">작가의 포크 발견</h4>
+                </div>
+                <p className="text-purple-200 text-sm">
+                  {analysis.specialMarks.writersForkDescription || '두뇌선 끝이 두 갈래로 갈라져 있습니다. 창의력과 논리력의 균형, 글쓰기 재능, 다재다능함을 나타냅니다.'}
+                </p>
+              </div>
+            )}
+
+            {/* 신비의 십자 */}
+            {analysis?.specialMarks?.mysticCross && (
+              <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">🔮</span>
+                  <h4 className="font-bold text-indigo-400">신비의 십자 발견</h4>
+                  <span className="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">희귀</span>
+                </div>
+                <p className="text-purple-200 text-sm">
+                  {analysis.specialMarks.mysticCrossDescription || '손바닥 중앙에 X자가 있습니다. 강한 직관력, 영적 능력, 예지력이 있으며 신비로운 경험을 할 가능성이 있습니다.'}
+                </p>
+              </div>
+            )}
+
+            {/* 솔로몬의 반지 */}
+            {analysis?.specialMarks?.ringOfSolomon && (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">👑</span>
+                  <h4 className="font-bold text-amber-400">솔로몬의 반지 발견</h4>
+                  <span className="px-2 py-0.5 bg-amber-500/30 text-amber-300 text-xs rounded-full">희귀</span>
+                </div>
+                <p className="text-purple-200 text-sm">
+                  {analysis.specialMarks.ringOfSolomonDescription || '검지 아래 반원형 선이 있습니다. 타고난 지혜, 뛰어난 판단력, 리더십을 나타내며 교육자나 상담가에게 적합합니다.'}
+                </p>
+              </div>
+            )}
+
+            {/* 직감선 */}
+            {analysis?.specialMarks?.lineOfIntuition && (
+              <div className="p-4 rounded-xl bg-pink-500/10 border border-pink-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">✨</span>
+                  <h4 className="font-bold text-pink-400">직감선 발견</h4>
+                  <span className="px-2 py-0.5 bg-pink-500/30 text-pink-300 text-xs rounded-full">매우 희귀</span>
+                </div>
+                <p className="text-purple-200 text-sm">
+                  {analysis.specialMarks.lineOfIntuitionDescription || '월구에서 수성구 방향 반원형 선이 있습니다. 매우 강한 직관력과 예지력, 심리 분야에 탁월한 재능이 있습니다.'}
+                </p>
+              </div>
+            )}
+
+            {/* 금성대 */}
+            {analysis?.specialMarks?.girdleOfVenus && (
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">💕</span>
+                  <h4 className="font-bold text-rose-400">금성대 발견</h4>
+                  <span className="px-2 py-0.5 bg-rose-500/30 text-rose-300 text-xs rounded-full">드묾</span>
+                </div>
+                <p className="text-purple-200 text-sm">
+                  {analysis.specialMarks.girdleOfVenusDescription || '감정선 위 반원형 선이 있습니다. 극도의 감수성과 예술적 기질, 깊은 감정을 나타내며 로맨틱하고 창의적입니다.'}
+                </p>
+              </div>
+            )}
+
+            {/* 특수 기호들 */}
+            {(analysis?.specialMarks?.stars?.length > 0 ||
+              analysis?.specialMarks?.crosses?.length > 0 ||
+              analysis?.specialMarks?.triangles?.length > 0 ||
+              analysis?.specialMarks?.squares?.length > 0) && (
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <h4 className="font-bold text-white mb-3">발견된 특수 기호</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                  {analysis?.specialMarks?.stars?.length > 0 && (
+                    <div className="p-2 bg-yellow-500/10 rounded-lg text-center">
+                      <span className="text-xl">⭐</span>
+                      <p className="text-yellow-300 text-xs mt-1">별 ({analysis.specialMarks.stars.length}개)</p>
+                      <p className="text-purple-300 text-xs">행운/성공</p>
+                    </div>
+                  )}
+                  {analysis?.specialMarks?.crosses?.length > 0 && (
+                    <div className="p-2 bg-blue-500/10 rounded-lg text-center">
+                      <span className="text-xl">✚</span>
+                      <p className="text-blue-300 text-xs mt-1">십자 ({analysis.specialMarks.crosses.length}개)</p>
+                      <p className="text-purple-300 text-xs">변화/시련</p>
+                    </div>
+                  )}
+                  {analysis?.specialMarks?.triangles?.length > 0 && (
+                    <div className="p-2 bg-green-500/10 rounded-lg text-center">
+                      <span className="text-xl">△</span>
+                      <p className="text-green-300 text-xs mt-1">삼각형 ({analysis.specialMarks.triangles.length}개)</p>
+                      <p className="text-purple-300 text-xs">재능/성공</p>
+                    </div>
+                  )}
+                  {analysis?.specialMarks?.squares?.length > 0 && (
+                    <div className="p-2 bg-cyan-500/10 rounded-lg text-center">
+                      <span className="text-xl">□</span>
+                      <p className="text-cyan-300 text-xs mt-1">사각형 ({analysis.specialMarks.squares.length}개)</p>
+                      <p className="text-purple-300 text-xs">보호 표시</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 특수 손금 없음 */}
+            {!analysis?.specialMarks?.simianLine &&
+             !analysis?.specialMarks?.sydneyLine &&
+             !analysis?.specialMarks?.mSign &&
+             !analysis?.specialMarks?.writersFork &&
+             !analysis?.specialMarks?.mysticCross &&
+             !analysis?.specialMarks?.ringOfSolomon &&
+             !analysis?.specialMarks?.lineOfIntuition &&
+             !analysis?.specialMarks?.girdleOfVenus &&
+             !(analysis?.specialMarks?.stars?.length > 0) &&
+             !(analysis?.specialMarks?.crosses?.length > 0) &&
+             !(analysis?.specialMarks?.triangles?.length > 0) &&
+             !(analysis?.specialMarks?.squares?.length > 0) && (
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+                <p className="text-purple-300">특수 손금이나 특별한 기호가 발견되지 않았습니다.</p>
+                <p className="text-purple-400 text-sm mt-1">일반적인 손금 패턴을 가지고 있으며, 이것이 나쁜 것은 아닙니다.</p>
+              </div>
+            )}
+          </div>
+        </Section>
+
         {/* 특별 주목 */}
         {interpretation?.specialNotes && (
           <motion.div

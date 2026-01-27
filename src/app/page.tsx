@@ -296,8 +296,8 @@ export default function HomePage() {
     },
     {
       icon: Hand,
-      title: '손바닥이 핵심!',
-      desc: '손바닥만 선명하게 보여도 OK! 손가락이나 손목은 필수가 아니에요.'
+      title: '손 전체 촬영',
+      desc: '손바닥 + 손가락까지 전체가 나오면 더 정확해요! 손가락 길이/간격도 분석해요.'
     },
     {
       icon: Focus,
@@ -313,11 +313,13 @@ export default function HomePage() {
 
   const detailedTips = [
     '✋ 주로 사용하는 손을 촬영하세요 (오른손잡이는 오른손)',
-    '🖐️ 손바닥만 나와도 분석 가능! (손가락/손목 필수 아님)',
-    '📏 손바닥이 화면의 70% 이상 차지하도록 가까이',
+    '🖐️ 손가락 끝까지 전체가 나오면 더 정확한 분석 가능!',
+    '👆 손가락을 쫙 펴세요 (손가락 길이, 간격, 마디도 분석해요)',
+    '📏 손 전체가 화면의 80% 이상 차지하도록 가까이',
     '🧴 손이 너무 건조하면 손금이 잘 안 보여요, 약간 촉촉하게',
     '🚫 반지나 액세서리는 빼고 촬영하면 더 정확해요',
-    '📱 후면 카메라가 화질이 더 좋으니 추천드려요'
+    '📱 후면 카메라가 화질이 더 좋으니 추천드려요',
+    '🔍 지문까지 보이면 피부문양학 분석도 가능해요!'
   ];
 
   const handleViewHistory = (reading: Reading) => {
@@ -469,9 +471,12 @@ export default function HomePage() {
                     <CheckCircle className="w-4 h-4" />
                     좋은 사진 예시
                   </h3>
-                  <p className="text-green-200 text-sm">
-                    손바닥이 밝고 손금이 선명하게 보이는 사진 (손바닥만 나와도 OK!)
-                  </p>
+                  <ul className="text-green-200 text-sm space-y-1">
+                    <li>✅ 손바닥 + 손가락 전체가 선명하게 보이는 사진</li>
+                    <li>✅ 밝은 조명에서 손금이 또렷하게 보이는 사진</li>
+                    <li>✅ 손가락을 쫙 펴고 찍은 사진</li>
+                    <li>✅ 최소 손바닥만 나와도 기본 분석 가능!</li>
+                  </ul>
                 </div>
 
                 <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
@@ -482,8 +487,9 @@ export default function HomePage() {
                   <ul className="text-red-200 text-sm space-y-1">
                     <li>• 어둡거나 그림자가 진 사진</li>
                     <li>• 흔들려서 흐릿한 사진</li>
-                    <li>• 손이 일부만 나온 사진</li>
+                    <li>• 손가락이 잘린 사진 (손가락 분석 불가)</li>
                     <li>• 손을 쥐거나 구부린 사진</li>
+                    <li>• 손가락을 붙이고 찍은 사진 (간격 분석 불가)</li>
                   </ul>
                 </div>
 
@@ -680,7 +686,7 @@ export default function HomePage() {
                     </li>
                     <li className="flex items-start gap-2 text-sm text-purple-200">
                       <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                      손바닥을 활짝 펴세요
+                      손바닥 + 손가락 전체를 펴세요
                     </li>
                     <li className="flex items-start gap-2 text-sm text-purple-200">
                       <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
@@ -688,7 +694,7 @@ export default function HomePage() {
                     </li>
                     <li className="flex items-start gap-2 text-sm text-purple-200">
                       <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                      손금이 선명하게 보이게 초점 맞추기
+                      손가락 간격을 벌리면 더 정확해요
                     </li>
                   </ul>
                 </div>
