@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
     // JSON 파싱 헬퍼 함수
     const parseJsonResponse = (text: string): any => {
