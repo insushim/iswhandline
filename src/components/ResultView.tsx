@@ -139,32 +139,70 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
     setCurrentSection(null);
   };
 
-  // 전체 결과 읽기 텍스트 생성
+  // 전체 결과 읽기 텍스트 생성 (상세 버전)
   const generateFullReadingText = () => {
-    let text = `손금 분석 결과입니다. 종합 점수는 100점 만점에 ${overallScore}점입니다. `;
+    let text = `손금 분석 결과를 알려드리겠습니다. `;
+    text += `종합 점수는 100점 만점에 ${overallScore}점입니다. `;
 
+    // 성격 분석
     if (interpretation?.personality?.summary) {
-      text += `성격 분석: ${interpretation.personality.summary} `;
+      text += `먼저 성격 분석입니다. ${interpretation.personality.summary} `;
     }
 
+    if (interpretation?.personality?.strengths?.length > 0) {
+      text += `당신의 강점은 ${interpretation.personality.strengths.slice(0, 3).join(', ')} 등이 있습니다. `;
+    }
+
+    // 연애운
     if (interpretation?.loveReading) {
-      text += `연애운 점수는 ${interpretation.loveReading.score}점입니다. ${interpretation.loveReading.loveStyle || ''} `;
+      text += `연애운은 ${interpretation.loveReading.score}점입니다. `;
+      if (interpretation.loveReading.loveStyle) {
+        text += `${interpretation.loveReading.loveStyle} `;
+      }
+      if (interpretation.loveReading.advice) {
+        text += `연애 조언: ${interpretation.loveReading.advice} `;
+      }
     }
 
+    // 직업운
     if (interpretation?.careerReading) {
-      text += `직업운 점수는 ${interpretation.careerReading.score}점입니다. ${interpretation.careerReading.workStyle || ''} `;
+      text += `직업운은 ${interpretation.careerReading.score}점입니다. `;
+      if (interpretation.careerReading.workStyle) {
+        text += `${interpretation.careerReading.workStyle} `;
+      }
+      if (interpretation.careerReading.suitableCareers?.length > 0) {
+        text += `적합한 직업으로는 ${interpretation.careerReading.suitableCareers.slice(0, 3).join(', ')} 등이 있습니다. `;
+      }
     }
 
+    // 재물운
     if (interpretation?.wealthReading) {
-      text += `재물운 점수는 ${interpretation.wealthReading.score}점입니다. ${interpretation.wealthReading.moneyMakingAbility || ''} `;
+      text += `재물운은 ${interpretation.wealthReading.score}점입니다. `;
+      if (interpretation.wealthReading.moneyMakingAbility) {
+        text += `${interpretation.wealthReading.moneyMakingAbility} `;
+      }
     }
 
+    // 건강운
     if (interpretation?.healthReading) {
-      text += `건강운 점수는 ${interpretation.healthReading.score}점입니다. ${interpretation.healthReading.stressManagement || ''} `;
+      text += `건강운은 ${interpretation.healthReading.score}점입니다. `;
+      if (interpretation.healthReading.stressManagement) {
+        text += `${interpretation.healthReading.stressManagement} `;
+      }
     }
 
+    // 인생 여정
+    if (interpretation?.lifePath?.lifeTheme) {
+      text += `당신의 인생 테마는 "${interpretation.lifePath.lifeTheme}" 입니다. `;
+    }
+
+    // 조언
     if (interpretation?.advice?.immediate) {
-      text += `조언: ${interpretation.advice.immediate}`;
+      text += `마지막으로 조언입니다. ${interpretation.advice.immediate} `;
+    }
+
+    if (interpretation?.advice?.affirmation) {
+      text += `오늘의 확언: ${interpretation.advice.affirmation}`;
     }
 
     return text;
@@ -188,27 +226,34 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
       return 'text-red-400';
     };
 
-    const dimensions = size === 'large' ? 'w-40 h-40' : 'w-20 h-20';
-    const strokeWidth = size === 'large' ? 8 : 4;
-    const radius = size === 'large' ? 64 : 32;
-    const circumference = 2 * Math.PI * (radius - strokeWidth);
+    const isLarge = size === 'large';
+    const svgSize = isLarge ? 160 : 80;
+    const strokeWidth = isLarge ? 8 : 4;
+    const radius = (svgSize / 2) - strokeWidth;
+    const circumference = 2 * Math.PI * radius;
+    const center = svgSize / 2;
 
     return (
-      <div className="relative">
-        <svg className={`${dimensions} transform -rotate-90`}>
+      <div className={`relative ${isLarge ? 'w-40 h-40' : 'w-20 h-20'}`}>
+        <svg
+          width={svgSize}
+          height={svgSize}
+          viewBox={`0 0 ${svgSize} ${svgSize}`}
+          className="transform -rotate-90"
+        >
           <circle
-            cx={radius}
-            cy={radius}
-            r={radius - strokeWidth}
+            cx={center}
+            cy={center}
+            r={radius}
             stroke="currentColor"
             strokeWidth={strokeWidth}
             fill="none"
             className="text-purple-900"
           />
           <circle
-            cx={radius}
-            cy={radius}
-            r={radius - strokeWidth}
+            cx={center}
+            cy={center}
+            r={radius}
             stroke="currentColor"
             strokeWidth={strokeWidth}
             fill="none"
@@ -218,7 +263,7 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`${size === 'large' ? 'text-4xl' : 'text-lg'} font-bold text-white`}>
+          <span className={`${isLarge ? 'text-4xl' : 'text-lg'} font-bold text-white`}>
             {score}
           </span>
           {label && <span className="text-xs text-purple-300 mt-1">{label}</span>}

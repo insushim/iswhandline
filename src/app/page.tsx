@@ -296,8 +296,8 @@ export default function HomePage() {
     },
     {
       icon: Hand,
-      title: '손바닥 펴기',
-      desc: '손가락을 자연스럽게 펴고, 손바닥이 평평하게 보이도록 해주세요.'
+      title: '손바닥이 핵심!',
+      desc: '손바닥만 선명하게 보여도 OK! 손가락이나 손목은 필수가 아니에요.'
     },
     {
       icon: Focus,
@@ -313,11 +313,11 @@ export default function HomePage() {
 
   const detailedTips = [
     '✋ 주로 사용하는 손을 촬영하세요 (오른손잡이는 오른손)',
-    '📏 손바닥 전체가 화면에 들어오도록 거리를 조절하세요',
+    '🖐️ 손바닥만 나와도 분석 가능! (손가락/손목 필수 아님)',
+    '📏 손바닥이 화면의 70% 이상 차지하도록 가까이',
     '🧴 손이 너무 건조하면 손금이 잘 안 보여요, 약간 촉촉하게',
     '🚫 반지나 액세서리는 빼고 촬영하면 더 정확해요',
-    '📱 후면 카메라가 화질이 더 좋으니 추천드려요',
-    '🔄 처음 결과가 이상하면 다시 촬영해보세요'
+    '📱 후면 카메라가 화질이 더 좋으니 추천드려요'
   ];
 
   const handleViewHistory = (reading: Reading) => {
@@ -470,7 +470,7 @@ export default function HomePage() {
                     좋은 사진 예시
                   </h3>
                   <p className="text-green-200 text-sm">
-                    손바닥이 밝고, 손금이 선명하게 보이며, 손가락 끝까지 다 나온 사진
+                    손바닥이 밝고 손금이 선명하게 보이는 사진 (손바닥만 나와도 OK!)
                   </p>
                 </div>
 
