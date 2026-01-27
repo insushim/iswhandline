@@ -1,130 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export const runtime = 'edge';
+// Vercel Serverless (Edge보다 타임아웃 길음 - 60초)
+export const maxDuration = 60;
 
-const PALM_ANALYSIS_PROMPT = `당신은 100년 이상의 경험을 가진 세계적인 손금 전문가입니다.
-수십 개의 손금학 문헌과 동서양의 손금 이론을 완벽하게 통달했습니다.
+const COMBINED_PROMPT = `당신은 세계적인 손금 전문가입니다.
 
-이 손바닥 이미지를 분석하여 다음 정보를 JSON 형식으로 반환해주세요:
+이 손바닥 이미지를 분석하고 해석을 제공해주세요.
+
+**반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만 반환:**
 
 {
-  "isValidPalm": true/false,
-  "handType": "left" 또는 "right",
-  "handShape": "earth/fire/air/water 중 하나",
-  "skinTexture": "부드러움/보통/거침",
-  "fingerLength": "짧음/보통/김",
-
+  "isValidPalm": true,
+  "confidence": 85,
+  "handType": "right",
+  "handShape": {
+    "type": "earth",
+    "description": "손 형태 설명"
+  },
   "lines": {
-    "lifeLine": {
-      "length": "짧음/보통/김",
-      "depth": "얕음/보통/깊음",
-      "curve": "직선/완만/곡선",
-      "breaks": 0,
-      "branches": 0,
-      "startPoint": "설명",
-      "endPoint": "설명",
-      "specialMarks": ["섬무늬", "별무늬", "십자" 등]
-    },
-    "headLine": { /* 같은 구조 */ },
-    "heartLine": { /* 같은 구조 */ },
-    "fateLine": { /* 같은 구조, 없으면 null */ },
-    "sunLine": { /* 같은 구조, 없으면 null */ },
-    "marriageLine": {
-      "count": 0,
-      "mainLine": { /* 위와 같은 구조 */ }
-    }
+    "lifeLine": "생명선 특징",
+    "headLine": "두뇌선 특징",
+    "heartLine": "감정선 특징",
+    "fateLine": "운명선 특징 (없으면 null)",
+    "sunLine": "태양선 특징 (없으면 null)"
   },
-
-  "mounts": {
-    "jupiter": { "development": "평평/보통/발달", "meaning": "설명" },
-    "saturn": { /* 같은 구조 */ },
-    "apollo": { /* 같은 구조 */ },
-    "mercury": { /* 같은 구조 */ },
-    "venus": { /* 같은 구조 */ },
-    "luna": { /* 같은 구조 */ },
-    "mars": { /* 같은 구조 */ }
-  },
-
-  "specialSigns": [
-    { "type": "별", "location": "위치", "meaning": "의미" }
-  ],
-
-  "fingers": {
-    "thumb": { "length": "보통", "flexibility": "유연/보통/뻣뻣", "shape": "설명" },
-    "index": { /* 같은 구조 */ },
-    "middle": { /* 같은 구조 */ },
-    "ring": { /* 같은 구조 */ },
-    "pinky": { /* 같은 구조 */ }
-  }
-}
-
-중요:
-1. 손바닥 이미지가 아니면 isValidPalm: false를 반환
-2. 모든 분석은 실제로 보이는 것만 기반으로
-3. JSON만 반환 (다른 텍스트 없이)`;
-
-const INTERPRETATION_PROMPT = `당신은 따뜻하고 지혜로운 손금 해석 전문가입니다.
-다음 손금 분석 데이터를 바탕으로 사용자에게 도움이 되는 상세한 해석을 제공해주세요.
-
-분석 데이터:
-{analysis}
-
-다음 형식의 JSON으로 응답해주세요:
-
-{
   "personality": {
     "title": "성격 분석",
-    "summary": "한 줄 요약",
-    "details": ["상세 설명 1", "상세 설명 2", ...],
+    "summary": "성격 한 줄 요약",
+    "details": ["성격 특징 1", "성격 특징 2", "성격 특징 3"],
     "strengths": ["강점 1", "강점 2"],
     "weaknesses": ["약점 1", "약점 2"]
   },
   "love": {
     "title": "연애운",
-    "score": 85,
-    "summary": "한 줄 요약",
-    "details": ["상세 설명 1", ...],
-    "advice": "조언"
+    "score": 75,
+    "summary": "연애운 요약",
+    "details": ["연애 특징 1", "연애 특징 2"],
+    "advice": "연애 조언"
   },
   "career": {
     "title": "직업운",
     "score": 80,
-    "summary": "한 줄 요약",
-    "details": ["상세 설명 1", ...],
-    "suitableJobs": ["적합 직업 1", "적합 직업 2"],
-    "advice": "조언"
+    "summary": "직업운 요약",
+    "details": ["직업 특징 1", "직업 특징 2"],
+    "suitableJobs": ["적합 직업 1", "적합 직업 2", "적합 직업 3"],
+    "advice": "커리어 조언"
   },
   "wealth": {
     "title": "재물운",
-    "score": 75,
-    "summary": "한 줄 요약",
-    "details": ["상세 설명 1", ...],
-    "advice": "조언"
+    "score": 70,
+    "summary": "재물운 요약",
+    "details": ["재물 특징 1", "재물 특징 2"],
+    "advice": "재물 조언"
   },
   "health": {
     "title": "건강운",
-    "score": 70,
-    "summary": "한 줄 요약",
-    "details": ["상세 설명 1", ...],
+    "score": 75,
+    "summary": "건강운 요약",
+    "details": ["건강 특징 1", "건강 특징 2"],
     "cautions": ["주의사항 1"],
-    "advice": "조언"
+    "advice": "건강 조언"
   },
-  "overallScore": 78,
+  "overallScore": 76,
   "luckyElements": {
-    "color": "행운의 색",
-    "number": "행운의 숫자",
-    "direction": "행운의 방향"
+    "color": "파란색",
+    "number": "7",
+    "direction": "동쪽"
   },
-  "yearlyFortune": "올해의 운세 요약",
-  "finalAdvice": "종합 조언"
+  "yearlyFortune": "올해 운세 요약 (2-3문장)",
+  "finalAdvice": "종합 조언 (2-3문장)"
 }
 
-지침:
-1. 긍정적이고 희망적인 톤 유지
-2. 구체적이고 실용적인 조언 제공
-3. 점수는 60-95 사이로 현실적으로
-4. 한국어로 자연스럽게 작성`;
+**중요 지침:**
+1. 손바닥이 아니면 isValidPalm: false, confidence: 0 반환
+2. 모든 텍스트는 한국어로 작성
+3. 점수는 60-90 사이로 현실적으로
+4. 긍정적이고 따뜻한 톤 유지
+5. JSON만 반환 (마크다운 코드블록 없이)`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -140,7 +93,13 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash-exp',
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4096,
+      }
+    });
 
     // JSON 파싱 헬퍼 함수
     const parseJsonResponse = (text: string): any => {
@@ -158,17 +117,17 @@ export async function POST(request: NextRequest) {
       } catch (e) {
         // JSON 파싱 실패 시 일반적인 문제 수정 시도
         let fixedJson = jsonMatch[0]
-          .replace(/,\s*}/g, '}')  // trailing comma 제거
-          .replace(/,\s*]/g, ']')  // trailing comma 제거
-          .replace(/'/g, '"');     // single quote to double quote
+          .replace(/,\s*}/g, '}')
+          .replace(/,\s*]/g, ']')
+          .replace(/'/g, '"');
         return JSON.parse(fixedJson);
       }
     };
 
+    // 단일 API 호출로 분석 + 해석 동시 수행
     if (action === 'analyze') {
-      // 손금 분석
       const result = await model.generateContent([
-        { text: PALM_ANALYSIS_PROMPT },
+        { text: COMBINED_PROMPT },
         {
           inlineData: {
             mimeType: mimeType,
@@ -182,28 +141,65 @@ export async function POST(request: NextRequest) {
 
       if (!text || text.trim().length === 0) {
         return NextResponse.json(
-          { error: '손금 분석 결과가 비어있습니다. 다시 시도해주세요.' },
+          { error: '분석 결과가 비어있습니다. 다시 시도해주세요.' },
           { status: 500 }
         );
       }
 
-      const analysis = parseJsonResponse(text);
-      return NextResponse.json({ analysis });
+      const combined = parseJsonResponse(text);
+
+      // 분석과 해석을 분리하여 반환
+      const analysis = {
+        isValidPalm: combined.isValidPalm,
+        confidence: combined.confidence || 80,
+        handType: combined.handType,
+        handShape: combined.handShape,
+        lines: combined.lines
+      };
+
+      return NextResponse.json({
+        analysis,
+        // 해석도 같이 반환 (2단계 호출 불필요)
+        interpretation: {
+          personality: combined.personality,
+          love: combined.love,
+          career: combined.career,
+          wealth: combined.wealth,
+          health: combined.health,
+          overallScore: combined.overallScore,
+          luckyElements: combined.luckyElements,
+          yearlyFortune: combined.yearlyFortune,
+          finalAdvice: combined.finalAdvice
+        }
+      });
 
     } else if (action === 'interpret') {
-      // 해석 생성
-      const prompt = INTERPRETATION_PROMPT.replace('{analysis}', JSON.stringify(inputAnalysis, null, 2));
+      // 이미 analyze에서 interpretation을 받았으면 이 호출은 스킵됨
+      // 혹시 호출되면 빈 해석 반환 방지
+      if (inputAnalysis?.interpretation) {
+        return NextResponse.json({ interpretation: inputAnalysis.interpretation });
+      }
+
+      // fallback - 해석만 요청된 경우
+      const prompt = `다음 손금 분석을 바탕으로 해석을 JSON으로 제공해주세요:
+${JSON.stringify(inputAnalysis, null, 2)}
+
+JSON 형식:
+{
+  "personality": { "title": "성격", "summary": "요약", "details": [], "strengths": [], "weaknesses": [] },
+  "love": { "title": "연애운", "score": 75, "summary": "", "details": [], "advice": "" },
+  "career": { "title": "직업운", "score": 75, "summary": "", "details": [], "suitableJobs": [], "advice": "" },
+  "wealth": { "title": "재물운", "score": 75, "summary": "", "details": [], "advice": "" },
+  "health": { "title": "건강운", "score": 75, "summary": "", "details": [], "cautions": [], "advice": "" },
+  "overallScore": 75,
+  "luckyElements": { "color": "", "number": "", "direction": "" },
+  "yearlyFortune": "",
+  "finalAdvice": ""
+}`;
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-
-      if (!text || text.trim().length === 0) {
-        return NextResponse.json(
-          { error: '해석 결과가 비어있습니다. 다시 시도해주세요.' },
-          { status: 500 }
-        );
-      }
 
       const interpretation = parseJsonResponse(text);
       return NextResponse.json({ interpretation });
