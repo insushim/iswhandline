@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import InstallPWA from '@/components/InstallPWA';
 
 export const metadata: Metadata = {
   title: 'PalmSeer AI - AI 손금 분석 전문가',
@@ -9,10 +10,16 @@ export const metadata: Metadata = {
   creator: 'PalmSeer AI',
   publisher: 'PalmSeer AI',
   robots: 'index, follow',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'PalmSeer AI',
+  },
   openGraph: {
     title: 'PalmSeer AI - AI 손금 분석 전문가',
     description: 'AI가 당신의 손금을 분석하여 전문가 수준의 해석을 제공합니다.',
-    url: 'https://iswhandline.pages.dev',
+    url: 'https://palm-seer-ai.vercel.app',
     siteName: 'PalmSeer AI',
     locale: 'ko_KR',
     type: 'website',
@@ -23,7 +30,8 @@ export const metadata: Metadata = {
     description: 'AI가 당신의 손금을 분석하여 전문가 수준의 해석을 제공합니다.',
   },
   icons: {
-    icon: '/favicon.svg',
+    icon: '/icon.svg',
+    apple: '/icon.svg',
   },
 };
 
@@ -31,7 +39,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#581c87',
+  themeColor: '#7c3aed',
+  colorScheme: 'dark',
 };
 
 export default function RootLayout({
@@ -51,6 +60,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900">
         {children}
+        <InstallPWA />
       </body>
     </html>
   );
