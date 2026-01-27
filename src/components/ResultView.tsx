@@ -1,17 +1,23 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hand, Heart, Briefcase, Coins, Activity, Star,
   ChevronDown, ChevronUp, ArrowLeft, Share2,
-  Sparkles, AlertTriangle, MapPin, Gem, Volume2, VolumeX, Pause, Play
+  Sparkles, AlertTriangle, MapPin, Gem, Volume2, VolumeX, Pause, Play,
+  MessageCircle, Send, Bot, User, Loader2, Clock, Target, TrendingUp
 } from 'lucide-react';
 import type { Reading } from '@/lib/storage';
 
 interface ResultViewProps {
   reading: Reading;
   onBack: () => void;
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 export default function ResultView({ reading, onBack }: ResultViewProps) {
@@ -21,6 +27,13 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
   const [isPaused, setIsPaused] = useState(false);
   const [currentSection, setCurrentSection] = useState<string | null>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // 챗봇 상태
+  const [showChatbot, setShowChatbot] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const { interpretation, analysis, overallScore } = reading;
 
@@ -32,6 +45,21 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
       }
     };
   }, []);
+
+  // 챗봇 스크롤
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  // 챗봇 초기 메시지
+  useEffect(() => {
+    if (showChatbot && chatMessages.length === 0) {
+      setChatMessages([{
+        role: 'assistant',
+        content: `안녕하세요! 저는 손금 분석 AI 상담사입니다. 🔮\n\n방금 분석한 당신의 손금에 대해 궁금한 점이 있으시면 무엇이든 물어보세요!\n\n예시 질문:\n• "내 연애운이 왜 ${interpretation?.loveReading?.score || 75}점인가요?"\n• "직업 추천 이유가 뭔가요?"\n• "건강에서 주의할 점은?"\n• "재물운을 높이려면?"`
+      }]);
+    }
+  }, [showChatbot]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev =>
@@ -273,6 +301,52 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
         )}
       </motion.div>
     );
+  };
+
+  // 챗봇 메시지 전송
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || isChatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsChatLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          context: {
+            overallScore,
+            interpretation,
+            analysis
+          }
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        setChatMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다. 다시 시도해주세요.'
+        }]);
+      } else {
+        setChatMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.reply
+        }]);
+      }
+    } catch (error) {
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '네트워크 오류가 발생했습니다. 다시 시도해주세요.'
+      }]);
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   const handleShare = async () => {
@@ -679,6 +753,133 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
             </SectionCard>
           )}
 
+          {activeTab === 'personality' && (
+            <>
+              <SectionCard
+                title="성격 종합 분석"
+                icon={Sparkles}
+                id="personality-main"
+                color="purple"
+                speakText={`성격 분석입니다. ${interpretation?.personality?.summary || ''} ${interpretation?.personality?.detailedAnalysis || ''}`}
+              >
+                <div className="space-y-4">
+                  <p className="text-purple-200 leading-relaxed">{interpretation?.personality?.summary || '분석 결과를 불러오는 중입니다.'}</p>
+                  {interpretation?.personality?.detailedAnalysis && (
+                    <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                      <p className="text-purple-200 text-sm leading-relaxed">{interpretation.personality.detailedAnalysis}</p>
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="나의 강점"
+                icon={TrendingUp}
+                id="strengths"
+                color="green"
+                speakText={`당신의 강점입니다. ${interpretation?.personality?.strengths?.join(', ') || '분석 중'}`}
+              >
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {interpretation?.personality?.strengths?.map((s: string, i: number) => (
+                      <span key={i} className="px-4 py-2 bg-green-500/20 text-green-300 rounded-full text-sm font-medium">
+                        ✓ {s}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-purple-300 text-sm">
+                    이러한 강점을 활용하여 더 큰 성공을 이룰 수 있습니다. 자신의 장점을 인식하고 발전시켜 나가세요.
+                  </p>
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="보완할 점"
+                icon={Target}
+                id="weaknesses"
+                color="yellow"
+                speakText={`보완할 점입니다. ${interpretation?.personality?.weaknesses?.join(', ') || '분석 중'}`}
+              >
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {interpretation?.personality?.weaknesses?.map((w: string, i: number) => (
+                      <span key={i} className="px-4 py-2 bg-orange-500/20 text-orange-300 rounded-full text-sm font-medium">
+                        △ {w}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-purple-300 text-sm">
+                    이러한 점들을 인식하고 개선해 나가면 더욱 균형 잡힌 성장을 이룰 수 있습니다.
+                  </p>
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="숨겨진 재능"
+                icon={Sparkles}
+                id="talents"
+                color="pink"
+                speakText={`숨겨진 재능입니다. ${interpretation?.personality?.hiddenTalents?.join(', ') || '분석 중'}`}
+              >
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {interpretation?.personality?.hiddenTalents?.map((t: string, i: number) => (
+                      <span key={i} className="px-4 py-2 bg-pink-500/20 text-pink-300 rounded-full text-sm font-medium">
+                        ★ {t}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-purple-300 text-sm">
+                    아직 발현되지 않은 재능이 있습니다. 새로운 도전을 통해 이러한 잠재력을 깨워보세요.
+                  </p>
+                </div>
+              </SectionCard>
+
+              {/* 인생 여정 */}
+              <SectionCard
+                title="인생 여정"
+                icon={Clock}
+                id="lifepath"
+                color="blue"
+                speakText={`인생 여정입니다. ${interpretation?.lifePath?.earlyLife || ''} ${interpretation?.lifePath?.middleLife || ''} ${interpretation?.lifePath?.laterLife || ''}`}
+              >
+                <div className="space-y-4">
+                  <div className="relative pl-6 border-l-2 border-blue-500/30">
+                    <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-blue-500"></div>
+                    <h4 className="text-blue-400 font-medium mb-1">초년기 (10-30대)</h4>
+                    <p className="text-purple-200 text-sm">{interpretation?.lifePath?.earlyLife || '-'}</p>
+                  </div>
+                  <div className="relative pl-6 border-l-2 border-purple-500/30">
+                    <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-purple-500"></div>
+                    <h4 className="text-purple-400 font-medium mb-1">중년기 (30-50대)</h4>
+                    <p className="text-purple-200 text-sm">{interpretation?.lifePath?.middleLife || '-'}</p>
+                  </div>
+                  <div className="relative pl-6 border-l-2 border-amber-500/30">
+                    <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-amber-500"></div>
+                    <h4 className="text-amber-400 font-medium mb-1">후년기 (50대 이후)</h4>
+                    <p className="text-purple-200 text-sm">{interpretation?.lifePath?.laterLife || '-'}</p>
+                  </div>
+                  {interpretation?.lifePath?.majorTurningPoints && interpretation.lifePath.majorTurningPoints.length > 0 && (
+                    <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <h4 className="text-amber-400 font-medium mb-2">주요 전환점</h4>
+                      <ul className="space-y-1">
+                        {interpretation.lifePath.majorTurningPoints.map((point: string, i: number) => (
+                          <li key={i} className="text-purple-200 text-sm">• {point}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {interpretation?.lifePath?.lifeTheme && (
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
+                      <h4 className="text-purple-300 font-medium mb-1">인생 테마</h4>
+                      <p className="text-white font-medium">"{interpretation.lifePath.lifeTheme}"</p>
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+            </>
+          )}
+
           {activeTab === 'advice' && (
             <>
               <SectionCard
@@ -753,6 +954,109 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
             다시 분석하기
           </button>
         </div>
+
+        {/* 챗봇 버튼 */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={() => setShowChatbot(!showChatbot)}
+            className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 ${
+              showChatbot ? 'bg-red-500 hover:bg-red-400' : 'bg-amber-500 hover:bg-amber-400'
+            }`}
+          >
+            {showChatbot ? (
+              <ChevronDown className="w-6 h-6 text-white" />
+            ) : (
+              <MessageCircle className="w-6 h-6 text-slate-900" />
+            )}
+          </button>
+        </div>
+
+        {/* 챗봇 패널 */}
+        <AnimatePresence>
+          {showChatbot && (
+            <motion.div
+              initial={{ opacity: 0, y: 100, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 100, scale: 0.9 }}
+              className="fixed bottom-24 right-4 left-4 md:left-auto md:w-96 z-50
+                         bg-slate-900/95 backdrop-blur-lg rounded-2xl border border-purple-500/30
+                         shadow-2xl overflow-hidden"
+              style={{ maxHeight: '60vh' }}
+            >
+              {/* 챗봇 헤더 */}
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white">손금 AI 상담사</h3>
+                    <p className="text-xs text-purple-200">분석 결과에 대해 물어보세요</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 채팅 메시지 영역 */}
+              <div className="h-72 overflow-y-auto p-4 space-y-4">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {msg.role === 'assistant' && (
+                      <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                        <Bot className="w-4 h-4 text-purple-400" />
+                      </div>
+                    )}
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                      msg.role === 'user'
+                        ? 'bg-amber-500 text-slate-900'
+                        : 'bg-white/10 text-purple-100'
+                    }`}>
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                    {msg.role === 'user' && (
+                      <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-amber-400" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {isChatLoading && (
+                  <div className="flex gap-2 justify-start">
+                    <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+                      <Bot className="w-4 h-4 text-purple-400" />
+                    </div>
+                    <div className="bg-white/10 rounded-2xl px-4 py-2">
+                      <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* 입력 영역 */}
+              <div className="p-4 border-t border-purple-500/20">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
+                    placeholder="궁금한 점을 물어보세요..."
+                    className="flex-1 bg-white/10 border border-purple-500/30 rounded-xl px-4 py-2
+                               text-white placeholder-purple-400 focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    onClick={sendChatMessage}
+                    disabled={isChatLoading || !chatInput.trim()}
+                    className="w-10 h-10 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:bg-gray-600
+                               flex items-center justify-center transition"
+                  >
+                    <Send className="w-5 h-5 text-slate-900" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
