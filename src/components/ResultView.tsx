@@ -543,8 +543,191 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </motion.div>
 
-        {/* 1. 성격 분석 */}
-        <Section title="1. 성격 분석" icon={Sparkles} color="purple">
+        {/* 1. 손 형태 & 손가락 분석 */}
+        <Section title="1. 손 형태 & 손가락 분석" icon={Hand} color="purple">
+          <div className="space-y-4">
+            {/* 손 형태 */}
+            {analysis?.handShape && (
+              <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">
+                    {analysis.handShape.type === 'fire' ? '🔥' :
+                     analysis.handShape.type === 'earth' ? '🌍' :
+                     analysis.handShape.type === 'air' ? '💨' :
+                     analysis.handShape.type === 'water' ? '💧' : '✋'}
+                  </span>
+                  <h4 className="font-bold text-purple-300">
+                    {analysis.handShape.type === 'fire' ? '불의 손 (Fire Hand)' :
+                     analysis.handShape.type === 'earth' ? '땅의 손 (Earth Hand)' :
+                     analysis.handShape.type === 'air' ? '공기의 손 (Air Hand)' :
+                     analysis.handShape.type === 'water' ? '물의 손 (Water Hand)' :
+                     '손 형태 분석'}
+                  </h4>
+                </div>
+                <p className="text-purple-200 text-sm">{analysis.handShape.description}</p>
+              </div>
+            )}
+
+            {/* 손가락 종합 */}
+            {analysis?.fingers?.overallFingerMeaning && (
+              <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                <h4 className="text-sm font-medium text-indigo-400 mb-2">손가락 종합 해석</h4>
+                <p className="text-purple-200 text-sm">{analysis.fingers.overallFingerMeaning}</p>
+              </div>
+            )}
+
+            {/* 개별 손가락 */}
+            {analysis?.fingers && (
+              <div className="grid gap-3 md:grid-cols-2">
+                {analysis.fingers.thumb?.meaning && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">👍</span>
+                      <h4 className="text-sm font-medium text-amber-400">엄지 (의지력)</h4>
+                      {analysis.fingers.thumb.length && (
+                        <span className="text-xs text-purple-400 ml-auto">
+                          {analysis.fingers.thumb.length === 'long' ? '긴 편' :
+                           analysis.fingers.thumb.length === 'short' ? '짧은 편' : '보통'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-purple-200 text-xs">{analysis.fingers.thumb.meaning}</p>
+                  </div>
+                )}
+                {analysis.fingers.index?.meaning && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">☝️</span>
+                      <h4 className="text-sm font-medium text-blue-400">검지 (야망/리더십)</h4>
+                      {analysis.fingers.index.comparedToRing && (
+                        <span className="text-xs text-purple-400 ml-auto">
+                          약지보다 {analysis.fingers.index.comparedToRing === 'longer' ? '긴' :
+                                    analysis.fingers.index.comparedToRing === 'shorter' ? '짧은' : '같은'} 편
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-purple-200 text-xs">{analysis.fingers.index.meaning}</p>
+                  </div>
+                )}
+                {analysis.fingers.middle?.meaning && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">🖐️</span>
+                      <h4 className="text-sm font-medium text-green-400">중지 (책임/균형)</h4>
+                    </div>
+                    <p className="text-purple-200 text-xs">{analysis.fingers.middle.meaning}</p>
+                  </div>
+                )}
+                {analysis.fingers.ring?.meaning && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">💍</span>
+                      <h4 className="text-sm font-medium text-pink-400">약지 (창의/예술)</h4>
+                      {analysis.fingers.ring.comparedToIndex && (
+                        <span className="text-xs text-purple-400 ml-auto">
+                          검지보다 {analysis.fingers.ring.comparedToIndex === 'longer' ? '긴' :
+                                    analysis.fingers.ring.comparedToIndex === 'shorter' ? '짧은' : '같은'} 편
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-purple-200 text-xs">{analysis.fingers.ring.meaning}</p>
+                  </div>
+                )}
+                {analysis.fingers.pinky?.meaning && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">🤙</span>
+                      <h4 className="text-sm font-medium text-cyan-400">새끼손가락 (소통/사업)</h4>
+                      {analysis.fingers.pinky.length && (
+                        <span className="text-xs text-purple-400 ml-auto">
+                          {analysis.fingers.pinky.length === 'long' ? '긴 편' :
+                           analysis.fingers.pinky.length === 'short' ? '짧은 편' : '보통'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-purple-200 text-xs">{analysis.fingers.pinky.meaning}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 손가락 간격 & 마디 */}
+            {(analysis?.fingers?.gaps?.meaning || analysis?.fingers?.knuckles) && (
+              <div className="grid gap-3 md:grid-cols-2">
+                {analysis.fingers.gaps?.meaning && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <h4 className="text-sm font-medium text-purple-400 mb-1">손가락 간격</h4>
+                    <p className="text-purple-200 text-xs">{analysis.fingers.gaps.meaning}</p>
+                  </div>
+                )}
+                {analysis.fingers.knuckles && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <h4 className="text-sm font-medium text-purple-400 mb-1">손가락 마디</h4>
+                    <p className="text-purple-200 text-xs">
+                      {analysis.fingers.knuckles === 'prominent' ? '마디가 두드러짐 - 분석적, 논리적 사고' :
+                       analysis.fingers.knuckles === 'smooth' ? '매끈한 마디 - 직관적, 감성적 사고' :
+                       analysis.fingers.knuckles}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* 2. 손목선(팔찌선) 분석 */}
+        {analysis?.wristLines && analysis.wristLines.count !== 'unknown' && (
+          <Section title="2. 손목선 (팔찌선)" icon={Activity} color="green">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-green-500/20 border border-green-500/30 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold text-green-400">{analysis.wristLines.count}</span>
+                  <span className="text-[10px] text-green-300">줄</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-purple-200 text-sm">{analysis.wristLines.meaning}</p>
+                </div>
+              </div>
+
+              {analysis.wristLines.description && (
+                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                  <h4 className="text-sm font-medium text-green-400 mb-1">상세 설명</h4>
+                  <p className="text-purple-200 text-sm">{analysis.wristLines.description}</p>
+                </div>
+              )}
+
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                <h4 className="text-sm font-medium text-green-400 mb-1">선명도</h4>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    {[1, 2, 3].map(level => (
+                      <div
+                        key={level}
+                        className={`w-8 h-2 rounded-full ${
+                          analysis.wristLines.clarity === 'clear' ? 'bg-green-400' :
+                          analysis.wristLines.clarity === 'faint' && level <= 1 ? 'bg-yellow-400' :
+                          analysis.wristLines.clarity === 'broken' && level <= 2 ? 'bg-orange-400' :
+                          level <= (analysis.wristLines.clarity === 'clear' ? 3 :
+                                    analysis.wristLines.clarity === 'faint' ? 1 : 2) ? 'bg-green-400' :
+                          'bg-white/10'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-purple-300">
+                    {analysis.wristLines.clarity === 'clear' ? '선명함' :
+                     analysis.wristLines.clarity === 'faint' ? '희미함' :
+                     analysis.wristLines.clarity === 'broken' ? '끊김 있음' :
+                     analysis.wristLines.clarity}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {/* 3. 성격 분석 */}
+        <Section title="3. 성격 분석" icon={Sparkles} color="purple">
           <div className="space-y-4">
             <p className="text-purple-200 leading-relaxed">{interpretation?.personality?.summary || '분석 결과를 불러오는 중입니다.'}</p>
 
@@ -601,8 +784,8 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
-        {/* 2. 연애운 */}
-        <Section title="2. 연애운" icon={Heart} color="pink">
+        {/* 4. 연애운 */}
+        <Section title="4. 연애운" icon={Heart} color="pink">
           <div className="space-y-4">
             <div className="flex items-center gap-4 mb-4">
               <ScoreCircle score={interpretation?.loveReading?.score || 0} size="small" />
@@ -633,8 +816,8 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
-        {/* 3. 직업운 */}
-        <Section title="3. 직업운" icon={Briefcase} color="blue">
+        {/* 5. 직업운 */}
+        <Section title="5. 직업운" icon={Briefcase} color="blue">
           <div className="space-y-4">
             <div className="flex items-center gap-4 mb-4">
               <ScoreCircle score={interpretation?.careerReading?.score || 0} size="small" />
@@ -681,8 +864,8 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
-        {/* 4. 재물운 */}
-        <Section title="4. 재물운" icon={Coins} color="yellow">
+        {/* 6. 재물운 */}
+        <Section title="6. 재물운" icon={Coins} color="yellow">
           <div className="space-y-4">
             <div className="flex items-center gap-4 mb-4">
               <ScoreCircle score={interpretation?.wealthReading?.score || 0} size="small" />
@@ -722,8 +905,8 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
-        {/* 5. 건강운 */}
-        <Section title="5. 건강운" icon={Activity} color="green">
+        {/* 7. 건강운 */}
+        <Section title="7. 건강운" icon={Activity} color="green">
           <div className="space-y-4">
             <div className="flex items-center gap-4 mb-4">
               <ScoreCircle score={interpretation?.healthReading?.score || 0} size="small" />
@@ -772,8 +955,8 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
-        {/* 6. 인생 여정 */}
-        <Section title="6. 인생 여정" icon={Clock} color="blue">
+        {/* 8. 인생 여정 */}
+        <Section title="8. 인생 여정" icon={Clock} color="blue">
           <div className="space-y-4">
             <div className="relative pl-6 border-l-2 border-blue-500/30">
               <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-blue-500"></div>
@@ -811,8 +994,8 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
-        {/* 7. 행운의 요소 */}
-        <Section title="7. 행운의 요소" icon={Star} color="amber">
+        {/* 9. 행운의 요소 */}
+        <Section title="9. 행운의 요소" icon={Star} color="amber">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center">
@@ -849,8 +1032,8 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
-        {/* 8. 맞춤 조언 */}
-        <Section title="8. 맞춤 조언" icon={AlertTriangle} color="amber">
+        {/* 10. 맞춤 조언 */}
+        <Section title="10. 맞춤 조언" icon={AlertTriangle} color="amber">
           <div className="space-y-4">
             <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
               <h4 className="text-sm font-medium text-amber-400 mb-1">⚡ 즉시 실천</h4>
@@ -877,8 +1060,8 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
           </div>
         </Section>
 
-        {/* 9. 특수 손금 분석 */}
-        <Section title="9. 특수 손금 분석" icon={Sparkles} color="amber">
+        {/* 11. 특수 손금 분석 */}
+        <Section title="11. 특수 손금 분석" icon={Sparkles} color="amber">
           <div className="space-y-4">
             {/* 막진손금/막손금 (Simian Line) */}
             {analysis?.specialMarks?.simianLine && (
