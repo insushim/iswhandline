@@ -880,7 +880,7 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
         {/* 9. 특수 손금 분석 */}
         <Section title="9. 특수 손금 분석" icon={Sparkles} color="amber">
           <div className="space-y-4">
-            {/* 막손금 (Simian Line) */}
+            {/* 막진손금/막손금 (Simian Line) */}
             {analysis?.specialMarks?.simianLine && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -889,7 +889,7 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">🐵</span>
-                  <h4 className="text-lg font-bold text-red-400">막손금 (원숭이선) 발견!</h4>
+                  <h4 className="text-lg font-bold text-red-400">막진손금 (관통선) 발견!</h4>
                   <span className="px-2 py-0.5 bg-red-500/30 text-red-300 text-xs rounded-full">희귀 1-4%</span>
                 </div>
                 <p className="text-purple-200 text-sm mb-3">

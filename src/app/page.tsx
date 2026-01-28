@@ -9,8 +9,26 @@ import {
   AlertCircle, History, X, Image, Lightbulb, Sun, Focus
 } from 'lucide-react';
 import { useAnalysisStore } from '@/lib/store';
-import { validateImageForPalmReading } from '@/lib/gemini';
 import { saveReading, generateId, createThumbnail, getReadings, type Reading } from '@/lib/storage';
+
+// 이미지 유효성 검사 (인라인)
+function validateImageForPalmReading(analysis: any): { valid: boolean; message?: string } {
+  if (!analysis.isValidPalm) {
+    return {
+      valid: false,
+      message: '손바닥 이미지가 아니거나 너무 흐립니다. 손바닥이 잘 보이는 사진을 업로드해주세요.'
+    };
+  }
+
+  if (analysis.confidence < 30) {
+    return {
+      valid: false,
+      message: '이미지 품질이 낮습니다. 더 밝고 선명한 사진을 업로드해주세요.'
+    };
+  }
+
+  return { valid: true };
+}
 import ResultView from '@/components/ResultView';
 import HistoryView from '@/components/HistoryView';
 

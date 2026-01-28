@@ -5,27 +5,27 @@ import { PALMISTRY_DATABASE } from '@/lib/palmistry-database';
 // Vercel Serverless - 60초 타임아웃
 export const maxDuration = 60;
 
-// 핵심 손금 지식 추출 (토큰 절약하면서 핵심 정보 전달)
-const CORE_PALMISTRY_KNOWLEDGE = {
-  // 손 형태
-  handShapes: PALMISTRY_DATABASE.handShapes.westernElements,
-  // 특수 손금 (가장 중요)
-  specialFeatures: {
-    simianLine: PALMISTRY_DATABASE.specialFeatures.simianLine,
-    sydneyLine: PALMISTRY_DATABASE.specialFeatures.sydneyLine,
-    mSign: PALMISTRY_DATABASE.specialFeatures.mSign,
-    mysticCross: PALMISTRY_DATABASE.specialFeatures.mysticCross,
-    writersFork: PALMISTRY_DATABASE.specialFeatures.writersFork,
-    ringOfSolomon: PALMISTRY_DATABASE.specialFeatures.ringOfSolomon,
-  },
-  // 구(Mount) 정보
-  mounts: PALMISTRY_DATABASE.mounts,
-};
+/**
+ * 교차검증된 손금 지식 데이터베이스 (10개 이상 출처)
+ * 출처: William G. Benham, Cheiro, Noel Jaquin, Charlotte Wolff,
+ *       마의상법, 수상학대전, Samudrik Shastra, 피부문양학 연구 등
+ */
+// 전체 손금 데이터베이스를 AI에게 주입 (4000줄+ 전체 DB)
+const VERIFIED_PALMISTRY_KNOWLEDGE = PALMISTRY_DATABASE;
 
-// 전문가급 손금 분석 프롬프트
+// 전문가급 손금 분석 프롬프트 (교차검증된 DB 지식 주입)
 const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분석 전문가입니다.
 서양 손금학(Cheiro, William Benham, Noel Jaquin)과 동양의 마의상법, 인도 Samudrik Shastra를 모두 통달했습니다.
 피부문양학(Dermatoglyphics) 연구와 Charlotte Wolff의 의학적 손금 연구도 숙지하고 있습니다.
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ 📚 10개 이상 출처에서 교차검증된 손금 지식 데이터베이스 (반드시 참조!)      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+아래 데이터베이스의 모든 지식을 활용하여 손금을 분석하세요.
+해석 시 반드시 이 DB의 내용을 근거로 사용하세요.
+
+${JSON.stringify(VERIFIED_PALMISTRY_KNOWLEDGE, null, 2)}
 
 ═══════════════════════════════════════════════════════════════
 📋 전문가 수준 손금 상세 분석 가이드
@@ -143,7 +143,7 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
 
 ⚠️ 특수 손금은 희귀하므로 신중하게 판별하되, 발견 시 반드시 기록하세요!
 
-■ 막손금 (Simian Line) - 인구 1~4%
+■ 막진손금 / 막손금 / 관통선 (Simian Line) - 인구 1~4%
 【판별법】감정선과 두뇌선이 "완전히 하나로 합쳐져" 손바닥을 가로지르는 단일 선
 - 일반: 감정선(위) + 두뇌선(아래) = 2개 / 막손금: 합쳐진 1개 강한 가로선
 【특성】이성과 감정 통합, 극도의 집중력, 흑백논리, 올인 성향, 전문 분야 비범한 성취
@@ -192,12 +192,52 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
 - 사각형(□): 보호 표시 (위험 방지)
 - 섬(○): 해당 시기 약화/장애 / 사슬: 불안정, 에너지 분산
 
-【5. 손가락 분석】
-- 엄지: 의지력, 논리 (긴=리더십, 유연=적응력)
-- 검지: 야망, 리더십 (약지보다 길면=강한 리더십)
-- 중지: 책임감, 균형 (길면=신중함)
-- 약지: 창의력, 예술 (검지보다 길면=위험 감수 성향)
-- 새끼손가락: 의사소통, 사업 (길면=뛰어난 언변)
+【5. 손가락 분석 (매우 중요!)】
+
+■ 엄지 (의지력의 손가락)
+- 길이: 긴 엄지 = 강한 의지력, 리더십 / 짧은 엄지 = 타인 의존 경향
+- 유연성: 뒤로 잘 휘어짐 = 적응력, 관대함 / 뻣뻣함 = 고집, 완고함
+- 각도: 손바닥에서 벌어진 각도 클수록 = 개방적, 관대함
+- 첫째 마디(의지) vs 둘째 마디(논리) 비율 분석
+
+■ 검지 (목성의 손가락 - 야망/리더십)
+- 약지보다 긴 경우 = 강한 리더십, 자신감, 야망
+- 약지보다 짧은 경우 = 창의적 성향, 위험 감수
+- 약지와 같은 경우 = 균형 잡힌 성격
+- 중지의 80% 이상이면 긴 것
+
+■ 중지 (토성의 손가락 - 책임/균형)
+- 다른 손가락의 기준점 (가장 긴 손가락)
+- 매우 긴 경우 = 진지함, 고독 선호
+- 짧은 경우 = 충동적, 자유로움
+
+■ 약지 (태양의 손가락 - 창의/예술)
+- 검지보다 긴 경우 = 예술적, 위험 감수, 도박 성향 가능
+- 검지보다 짧은 경우 = 자신감, 리더십
+- 중지에 가까운 길이 = 예술적 재능
+
+■ 새끼손가락 (수성의 손가락 - 의사소통/사업)
+- 약지 첫째 마디선 넘으면 = 긴 것 → 뛰어난 언변, 사업 수완
+- 짧은 경우 = 내성적, 표현 어려움
+- 휘어진 경우 = 외교적, 협상력
+
+■ 손가락 간격 (자연스럽게 폈을 때)
+- 검지-중지 벌어짐 = 독립적 사고
+- 중지-약지 벌어짐 = 미래 걱정 안함, 낙천적
+- 약지-새끼 벌어짐 = 독립적 행동, 자유로움
+- 모든 손가락 붙음 = 신중함, 비밀주의
+
+■ 손가락 마디
+- 마디가 두드러진 손가락 = 분석적, 논리적
+- 매끄러운 손가락 = 직관적, 충동적
+
+【6. 손목선 (팔찌선/Rascette Lines)】
+- 위치: 손바닥과 손목의 경계 가로선
+- 3개 이상 선명 = 건강, 장수, 행운
+- 2개 = 평균적 건강
+- 1개 또는 불명확 = 체력 관리 필요
+- 첫 번째 선이 위로 휜 경우 (여성) = 출산 관련 주의
+- 선이 끊기지 않고 깊고 선명 = 좋은 징조
 
 ═══════════════════════════════════════════════════════════════
 📝 응답 형식 (JSON)
@@ -211,6 +251,47 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
   "handShape": {
     "type": "fire/earth/air/water",
     "description": "손 형태 설명 (손바닥 모양, 손가락 길이 근거)"
+  },
+
+  "fingers": {
+    "thumb": {
+      "length": "long/medium/short",
+      "flexibility": "flexible/stiff/normal",
+      "angle": "wide/normal/narrow (손바닥에서 벌어진 각도)",
+      "meaning": "엄지 해석 (의지력, 논리력)"
+    },
+    "index": {
+      "length": "long/medium/short",
+      "comparedToRing": "longer/shorter/equal (약지 대비)",
+      "meaning": "검지 해석 (야망, 리더십)"
+    },
+    "middle": {
+      "length": "long/medium/short",
+      "meaning": "중지 해석 (책임감, 균형)"
+    },
+    "ring": {
+      "length": "long/medium/short",
+      "comparedToIndex": "longer/shorter/equal (검지 대비)",
+      "meaning": "약지 해석 (창의력, 예술성)"
+    },
+    "pinky": {
+      "length": "long/medium/short (약지 첫마디 기준)",
+      "shape": "straight/curved",
+      "meaning": "새끼손가락 해석 (의사소통, 사업)"
+    },
+    "gaps": {
+      "description": "손가락 간격 분석",
+      "meaning": "간격이 나타내는 성격 특성"
+    },
+    "knuckles": "prominent/smooth (마디 두드러짐 여부)",
+    "overallFingerMeaning": "손가락 종합 해석 (리더십, 창의력, 의사소통 등)"
+  },
+
+  "wristLines": {
+    "count": "1/2/3/4 (팔찌선 개수)",
+    "clarity": "clear/faint/broken",
+    "description": "손목선 상태 설명",
+    "meaning": "손목선 해석 (건강, 장수, 행운)"
   },
 
   "lines": {
@@ -277,11 +358,11 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
   },
 
   "personality": {
-    "summary": "최소 150자, 손 형태(4원소)와 주요 선의 특징을 근거로 성격 요약. 특수 손금 발견 시 첫 문장에 언급",
-    "strengths": ["강점 5개 - 각각 어떤 선/구/손 형태 때문인지 근거 명시"],
+    "summary": "최소 150자, 손 형태(4원소) + 손가락 특성 + 주요 선의 특징을 근거로 성격 요약. 특수 손금 발견 시 첫 문장에 언급",
+    "strengths": ["강점 5개 - 각각 어떤 선/구/손가락/손 형태 때문인지 근거 명시"],
     "weaknesses": ["약점 3개 - 손금적 근거와 함께 개선 조언"],
-    "hiddenTalents": ["숨은 재능 4개 - 잠재력의 손금적 근거"],
-    "detailedAnalysis": "최소 250자, 손 형태/손금선/구/특수 손금을 연결한 상세 분석. 특수 손금 발견 시 해당 특성 반드시 포함"
+    "hiddenTalents": ["숨은 재능 4개 - 손가락 길이, 구 발달 등 잠재력의 손금적 근거"],
+    "detailedAnalysis": "최소 250자, 손 형태/손가락 분석/손금선/구/손목선/특수 손금을 연결한 상세 분석"
   },
 
   "loveReading": {
@@ -295,11 +376,12 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
   },
 
   "careerReading": {
-    "naturalTalents": ["타고난 재능 5개 - 손 형태/두뇌선/구 발달 등 손금 근거 명시"],
-    "suitableCareers": ["손 형태와 주요 선 특성에 맞는 직업 5-7개. 특수 손금 발견 시 해당 특성에 맞는 직업 포함"],
-    "workStyle": "업무 스타일 (두뇌선 형태/손 형태/화성구 근거)",
-    "leadershipPotential": "리더십 잠재력 (목성구/검지/엄지 근거)",
-    "businessAbility": "사업 능력 (수성구/새끼손가락 근거)",
+    "naturalTalents": ["타고난 재능 5개 - 손 형태/두뇌선/손가락 길이/구 발달 등 손금 근거 명시"],
+    "suitableCareers": ["손 형태와 주요 선 + 손가락 특성에 맞는 직업 5-7개. 검지>약지=리더십직, 약지>검지=창의직 등 반영"],
+    "workStyle": "업무 스타일 (두뇌선 형태/손 형태/손가락 마디/화성구 근거)",
+    "leadershipPotential": "리더십 잠재력 (목성구 + 검지 길이 + 엄지 크기 종합)",
+    "businessAbility": "사업 능력 (수성구 + 새끼손가락 길이 + 손가락 간격 종합)",
+    "communicationSkill": "의사소통 능력 (새끼손가락 길이/형태 근거)",
     "careerAdvice": "손금 특성에 맞는 커리어 조언",
     "score": 80
   },
@@ -315,9 +397,12 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
   },
 
   "healthReading": {
-    "strongPoints": ["건강 강점 - 생명선 길이/깊이/곡선/이중선 등 근거"],
-    "concernAreas": ["주의 영역 - 손금/손색/손질감 근거. 특수 손금 특성 반영"],
+    "constitution": "체질 분석 (손 형태 기반 - 불=심장, 땅=소화기, 공기=신경, 물=신장)",
+    "vitality": "생명력 수준 (생명선 깊이/길이 + 손목선 개수 종합)",
+    "strongPoints": ["건강 강점 - 생명선/손목선/금성구 발달 등 근거"],
+    "concernAreas": ["주의 영역 - 손금/손색/손질감/손목선 상태 근거"],
     "stressManagement": "스트레스 관리법 (손금 특성 기반)",
+    "longevity": "장수 지표 (손목선 개수 + 생명선 상태 종합)",
     "recommendations": ["건강 권장사항 4-5개"],
     "score": 70
   },
@@ -335,7 +420,7 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
     "shortTerm": "단기 조언 3개월 (구체적 행동)",
     "longTerm": "장기 조언 5년 (인생 방향)",
     "warnings": ["손금 특성에 따른 주의사항 3-4개. 특수 손금 발견 시 해당 특성의 단점 포함"],
-    "affirmation": "손금 특성에 맞는 긍정 확언"
+    "affirmation": "이 사람의 손금 특성(손 형태, 강점, 잠재력)을 반영한 개인화된 긍정 확언. 매번 다르게, 구체적으로 작성. 예: '나의 [특정 강점]은 [구체적 목표]를 이루는 힘이 됩니다' 형식"
   },
 
   "luckyElements": {
@@ -354,7 +439,7 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
 ⚠️ 핵심 지침 (반드시 준수)
 ═══════════════════════════════════════════════════════════════
 
-1. **체계적 분석 순서 준수**: 손 형태 → 주요선 → 구 → 특수 손금 → 손가락 → 종합
+1. **체계적 분석 순서 준수**: 손 형태 → 손가락 분석 → 손목선 → 주요선 → 구 → 특수 손금 → 종합
 2. **근거 기반 해석 필수**: 모든 해석에 "~선이/~구가 ~하기 때문에" 근거 포함
    예시: "생명선이 엄지를 넓게 감싸고 깊이 새겨져 있어 생명력이 강합니다"
 3. **특수 손금 정확히 감지** (발견 시 반드시 기록):
@@ -368,15 +453,52 @@ const PALM_ANALYSIS_PROMPT = `당신은 50년 경력의 세계적인 손금 분�
    - specialMarks 객체에 true로 기록
    - specialNotes에 발견된 특수 손금 설명 (최소 80자)
    - 성격/직업/연애 해석에 해당 특성 반영
-5. **일반 손금도 상세하게 분석**:
+5. **손가락 분석 필수** (fingers 객체 반드시 채우기):
+   - 검지 vs 약지 길이 비교 → 리더십/창의력 판단
+   - 새끼손가락 길이(약지 첫마디 기준) → 의사소통 능력
+   - 엄지 크기와 유연성 → 의지력, 적응력
+   - 손가락 간격 → 성격 개방성
+   - 마디 두드러짐 → 분석적 vs 직관적
+6. **손목선(팔찌선) 분석 필수** (wristLines 객체 반드시 채우기):
+   - 선 개수 (3개 이상 = 건강/장수)
+   - 선명도와 끊김 여부
+7. **일반 손금도 상세하게 분석**:
    - 각 선의 물리적 특징 (길이, 깊이, 형태, 끝점) 구체적 기술
    - 6개 구(Mount)의 발달 상태 모두 확인
    - 특수 기호(별, 십자, 삼각형, 사각형, 섬, 사슬) 위치별 확인
    - 손 형태에 따른 성격 특성 반영
-6. **점수**: 60-88 범위 (90+ 매우 드묾)
-7. **언어**: 한국어, 따뜻하고 긍정적인 톤, 부정적인 것도 조언 형태로
-8. **JSON만 반환** (마크다운 코드블록 없이)
-9. **실제 보이는 것만 분석** - 추측 금지, 보이지 않으면 false로 기록`;
+8. **점수**: 60-88 범위 (90+ 매우 드묾)
+9. **언어**: 한국어, 따뜻하고 긍정적인 톤, 부정적인 것도 조언 형태로
+10. **긍정 확언 개인화 필수**: affirmation은 반드시 이 사람의 손금에서 발견된 구체적 특성을 언급해야 함
+    - ❌ 나쁜 예: "나는 무한한 가능성을 가지고 있습니다" (너무 일반적)
+    - ✅ 좋은 예: "나의 깊은 두뇌선이 보여주는 분석력으로 어떤 문제도 해결할 수 있습니다"
+    - ✅ 좋은 예: "불의 손이 가진 열정으로 나는 원하는 모든 것을 이룹니다"
+    - ✅ 좋은 예: "발달한 목성구가 나타내는 리더십으로 나는 사람들을 이끕니다"
+11. **JSON만 반환** (마크다운 코드블록 없이)
+12. **실제 보이는 것만 분석** - 추측 금지, 보이지 않으면 "unknown" 또는 빈 문자열
+13. **손가락이 보이지 않는 경우**: fingers 객체에 "손가락이 이미지에서 보이지 않음" 기록
+14. **손목이 보이지 않는 경우**: wristLines에 "손목이 이미지에서 보이지 않음" 기록
+
+═══════════════════════════════════════════════════════════════
+📚 DB 지식 활용 필수 지침
+═══════════════════════════════════════════════════════════════
+
+위에서 제공된 VERIFIED_PALMISTRY_KNOWLEDGE 데이터베이스를 반드시 참조하여:
+
+1. **손 형태 해석**: handShapes의 personality, careers, healthTendency 활용
+2. **주요선 해석**: majorLines의 각 선별 length, depth, shape, specialMarks 참조
+3. **부가선 해석**: minorLines의 marriageLines, travelLines, braceletLines 등 참조
+4. **구(Mount) 해석**: mounts의 development 레벨별 의미, specialMarks 참조
+5. **특수 손금**: specialFeatures의 prevalence, characteristics, positiveTraits, negativeTraits 참조
+6. **손가락 분석**: fingers의 각 손가락별 length, lean, meaning 참조
+7. **건강 지표**: healthIndicators의 generalHealth, specificIndicators 참조
+8. **동양 손금학**: easternPalmistry의 한국/중국/인도 해석 참조하여 풍부한 해석
+
+⚠️ 해석 시 DB에 있는 구체적 내용을 직접 인용하여 근거를 제시하세요!
+예: "목성구가 발달했습니다. DB에 따르면 이는 '강한 리더십, 야망, 자신감, 권위 추구'를 의미합니다."
+예: "막손금이 발견되었습니다. 이는 전체 인구의 1-4%만 가진 희귀한 특징으로,
+    '극도의 집중력과 몰입, 흑백논리, 한 가지에 올인하는 성향'을 나타냅니다."
+`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -461,6 +583,8 @@ export async function POST(request: NextRequest) {
         confidence: combined.confidence ?? 75,
         handType: combined.handType ?? 'unknown',
         handShape: combined.handShape ?? { type: 'earth', description: '분석 중' },
+        fingers: combined.fingers ?? { overallFingerMeaning: '손가락 분석 정보 없음' },
+        wristLines: combined.wristLines ?? { count: 'unknown', meaning: '손목선 분석 정보 없음' },
         lines: combined.lines ?? {},
         mounts: combined.mounts ?? {},
         specialMarks: combined.specialMarks ?? {}
