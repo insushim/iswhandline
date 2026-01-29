@@ -603,10 +603,89 @@ ${JSON.stringify(VERIFIED_PALMISTRY_KNOWLEDGE, null, 2)}
 - 보이지 않는 것은 "unknown" 또는 빈 문자열
 `;
 
+// 사용자 정보 기반 추가 프롬프트 생성
+function generateUserContextPrompt(userInfo?: { gender: string; age: number; dominantHand: string }, hasNonDominantHand?: boolean): string {
+  if (!userInfo) return '';
+
+  const genderText = userInfo.gender === 'male' ? '남성' : userInfo.gender === 'female' ? '여성' : '기타';
+  const handText = userInfo.dominantHand === 'right' ? '오른손' : '왼손';
+  const nonDominantHandText = userInfo.dominantHand === 'right' ? '왼손' : '오른손';
+
+  return `
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ 👤 의뢰인 정보 (개인화된 분석에 반드시 반영하세요!)                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+■ 기본 정보
+- 성별: ${genderText}
+- 나이: ${userInfo.age}세
+- 주사용 손: ${handText}잡이
+
+■ 분석 중인 손 정보
+- 현재 이미지: ${handText} (주사용 손 = 현재 상태, 후천적 노력, 가까운 미래)
+${hasNonDominantHand ? `- 보조 손(${nonDominantHandText}) 이미지도 제공됨: 타고난 성향과 잠재력 분석에 참고` : ''}
+
+■ 성별/나이별 해석 지침
+${userInfo.gender === 'female' ? `
+【여성 특화 해석 포인트】
+- 첫 번째 손목선이 위로 휘어져 있으면 출산/생리 관련 건강 주의 필요
+- 금성구 발달: 여성적 매력, 정서적 풍요로움
+- 감정선이 발달: 공감 능력과 관계에서의 세심함
+- 결혼선 해석 시 여성의 관점에서 파트너십 분석
+` : userInfo.gender === 'male' ? `
+【남성 특화 해석 포인트】
+- 목성구 발달: 리더십과 사회적 야망
+- 화성구(평원/상/하) 발달: 경쟁심, 행동력
+- 운명선 해석 시 커리어 중심 분석 강화
+- 결혼선 해석 시 남성의 관점에서 파트너십 분석
+` : ''}
+
+【나이대별 해석 가이드 (${userInfo.age}세)】
+${userInfo.age < 20 ? `
+- 아직 손금이 완전히 형성되지 않았을 수 있음
+- 잠재력과 가능성에 초점
+- 진로/적성 탐색에 도움 되는 조언 강조
+- 성격 형성기이므로 긍정적 방향 제시
+` : userInfo.age < 30 ? `
+- 커리어 시작/성장기
+- 연애/결혼 가능성에 관심 높음
+- 자기 정체성 확립 시기
+- 도전과 성장에 대한 조언
+` : userInfo.age < 40 ? `
+- 커리어 안정/성숙기
+- 가정/결혼 관련 운세 중요
+- 재정적 안정에 대한 관심
+- 건강 관리 시작 필요성 언급
+` : userInfo.age < 50 ? `
+- 중년의 전환기
+- 커리어 정점 또는 전환
+- 자녀/가족 관계 중요
+- 건강 관리 강조, 예방적 조언
+` : userInfo.age < 60 ? `
+- 인생 후반기 준비
+- 지혜와 경험의 축적
+- 건강 유지가 핵심
+- 삶의 의미와 만족에 초점
+` : `
+- 노년기 건강과 활력
+- 손주, 가족 관계
+- 삶의 지혜 공유
+- 편안한 노후에 대한 조언
+`}
+
+■ 생명선 타이밍 해석 (나이 ${userInfo.age}세 기준)
+- 생명선의 현재 위치(약 ${Math.floor(userInfo.age / 80 * 100)}% 지점)에서 특이점 확인
+- 해당 시기의 끊김, 갈라짐, 특수 표시에 주목
+
+🚨 중요: 위 정보를 바탕으로 이 ${genderText} ${userInfo.age}세 의뢰인에게만 해당되는
+매우 구체적이고 개인화된 분석을 제공하세요. 일반적인 해석 금지!
+`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { image, mimeType, action } = body;
+    const { image, mimeType, action, userInfo, hasNonDominantHand } = body;
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -660,8 +739,12 @@ export async function POST(request: NextRequest) {
 
     // 분석 요청
     if (action === 'analyze') {
+      // 사용자 정보 기반 추가 프롬프트 생성
+      const userContextPrompt = generateUserContextPrompt(userInfo, hasNonDominantHand);
+      const fullPrompt = userContextPrompt + '\n\n' + PALM_ANALYSIS_PROMPT;
+
       const result = await model.generateContent([
-        { text: PALM_ANALYSIS_PROMPT },
+        { text: fullPrompt },
         {
           inlineData: {
             mimeType: mimeType,

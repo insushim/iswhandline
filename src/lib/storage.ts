@@ -3,6 +3,17 @@
  * Cloudflare Pages에서는 서버리스이므로 클라이언트 측 저장소 사용
  */
 
+export interface UserInfo {
+  gender: 'male' | 'female' | 'other';
+  age: number;
+  dominantHand: 'right' | 'left';
+}
+
+export interface HandImages {
+  dominant: string;  // 주사용 손 (필수)
+  nonDominant?: string;  // 비주사용 손 (선택)
+}
+
 export interface Reading {
   id: string;
   timestamp: number;
@@ -12,6 +23,9 @@ export interface Reading {
   analysis: any;
   interpretation: any;
   overallScore: number;
+  // 새로 추가된 필드
+  userInfo?: UserInfo;
+  handImages?: HandImages;
 }
 
 const STORAGE_KEY = 'palmseer_readings';

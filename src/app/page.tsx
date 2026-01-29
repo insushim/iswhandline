@@ -6,10 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hand, Upload, Camera, Sparkles, Heart, Briefcase,
   Coins, Activity, Star, ChevronRight, Info, CheckCircle,
-  AlertCircle, History, X, Image, Lightbulb, Sun, Focus
+  AlertCircle, History, X, Image, Lightbulb, Sun, Focus,
+  User, Calendar, ArrowRight, ArrowLeft, Plus, Check
 } from 'lucide-react';
 import { useAnalysisStore } from '@/lib/store';
-import { saveReading, generateId, createThumbnail, getReadings, type Reading } from '@/lib/storage';
+import { saveReading, generateId, createThumbnail, getReadings, type Reading, type UserInfo, type HandImages } from '@/lib/storage';
 
 // 이미지 유효성 검사 (인라인)
 function validateImageForPalmReading(analysis: any): { valid: boolean; message?: string } {
@@ -32,6 +33,9 @@ function validateImageForPalmReading(analysis: any): { valid: boolean; message?:
 import ResultView from '@/components/ResultView';
 import HistoryView from '@/components/HistoryView';
 
+// 분석 단계 타입
+type AnalysisStep = 'userInfo' | 'upload' | 'analyzing' | 'result';
+
 export default function HomePage() {
   const [showResult, setShowResult] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -40,6 +44,19 @@ export default function HomePage() {
   const [readings, setReadings] = useState<Reading[]>([]);
   const [selectedReading, setSelectedReading] = useState<Reading | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+
+  // 새로운 상태들
+  const [currentStep, setCurrentStep] = useState<AnalysisStep>('userInfo');
+  const [userInfo, setUserInfo] = useState<UserInfo>({
+    gender: 'male',
+    age: 30,
+    dominantHand: 'right'
+  });
+  const [handImages, setHandImages] = useState<HandImages>({
+    dominant: '',
+    nonDominant: ''
+  });
+  const [currentHandType, setCurrentHandType] = useState<'dominant' | 'nonDominant'>('dominant');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -170,27 +187,45 @@ export default function HomePage() {
 
       ctx.drawImage(video, 0, 0);
 
-      // blob으로 변환 (카메라 닫기 전에 처리)
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob(resolve, 'image/jpeg', 0.9);
-      });
+      // base64로 변환
+      const base64Image = canvas.toDataURL('image/jpeg', 0.9);
 
-      // 카메라 닫기 (blob 생성 후)
+      // 카메라 닫기
       stopCamera();
 
-      if (!blob) {
-        setError('사진 촬영에 실패했습니다. 다시 시도해주세요.');
-        return;
+      // 현재 촬영 중인 손에 따라 이미지 저장
+      if (currentHandType === 'dominant') {
+        setHandImages(prev => ({ ...prev, dominant: base64Image }));
+      } else {
+        setHandImages(prev => ({ ...prev, nonDominant: base64Image }));
       }
 
-      const file = new File([blob], 'palm-photo.jpg', { type: 'image/jpeg' });
-
-      // processImage 호출
-      await processImage(file);
     } catch (err: any) {
       console.error('촬영 오류:', err);
       setError(`촬영 오류: ${err.message || '알 수 없는 오류'}`);
       stopCamera();
+    }
+  };
+
+  // 이미지를 Base64로 변환하는 헬퍼 함수
+  const fileToBase64 = async (file: File): Promise<{ base64: string; mimeType: string; fullBase64: string }> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const base64 = btoa(
+      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
+    const mimeType = file.type;
+    const fullBase64 = `data:${mimeType};base64,${base64}`;
+    return { base64, mimeType, fullBase64 };
+  };
+
+  // 단일 손 이미지 추가 (양손 촬영용)
+  const addHandImage = async (file: File) => {
+    const { fullBase64 } = await fileToBase64(file);
+
+    if (currentHandType === 'dominant') {
+      setHandImages(prev => ({ ...prev, dominant: fullBase64 }));
+    } else {
+      setHandImages(prev => ({ ...prev, nonDominant: fullBase64 }));
     }
   };
 
@@ -201,18 +236,14 @@ export default function HomePage() {
 
     // 분석 시작
     setAnalyzing(true);
+    setCurrentStep('analyzing');
     setProgress(5, '이미지 준비 중...');
 
     const progressInterval = simulateProgress();
 
     try {
       // 파일을 Base64로 변환
-      const arrayBuffer = await file.arrayBuffer();
-      const base64Image = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-      const mimeType = file.type;
-      const fullBase64 = `data:${mimeType};base64,${base64Image}`;
+      const { base64: base64Image, mimeType, fullBase64 } = await fileToBase64(file);
 
       // 단일 API 호출로 분석 + 해석 동시 수행
       setProgress(30, 'AI가 손금을 분석하고 있습니다...');
@@ -222,7 +253,11 @@ export default function HomePage() {
         body: JSON.stringify({
           image: base64Image,
           mimeType: mimeType,
-          action: 'analyze'
+          action: 'analyze',
+          // 사용자 정보 추가
+          userInfo: userInfo,
+          // 양손 이미지 정보 (있으면)
+          hasNonDominantHand: !!handImages.nonDominant
         })
       });
 
@@ -263,7 +298,13 @@ export default function HomePage() {
         handShape: analysis.handShape,
         analysis,
         interpretation,
-        overallScore: interpretation?.overallScore || 70
+        overallScore: interpretation?.overallScore || 70,
+        // 새로 추가된 필드
+        userInfo: userInfo,
+        handImages: {
+          dominant: fullBase64,
+          nonDominant: handImages.nonDominant || undefined
+        }
       };
 
       saveReading(reading);
@@ -273,6 +314,7 @@ export default function HomePage() {
       setResult(readingId, analysis, interpretation);
       setSelectedReading(reading);
       setShowResult(true);
+      setCurrentStep('result');
 
     } catch (err: any) {
       clearInterval(progressInterval);
@@ -280,14 +322,20 @@ export default function HomePage() {
       const errorMessage = err.message || '분석 중 오류가 발생했습니다.';
       setError(`오류: ${errorMessage}`);
       setAnalyzing(false);
+      setCurrentStep('upload');
     }
   };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (!file) return;
-    await processImage(file);
-  }, []);
+
+    // 업로드 단계에서만 이미지 저장 (주사용 손)
+    if (currentStep === 'upload') {
+      const { fullBase64 } = await fileToBase64(file);
+      setHandImages(prev => ({ ...prev, dominant: fullBase64 }));
+    }
+  }, [currentStep]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -383,7 +431,12 @@ export default function HomePage() {
             className="fixed inset-0 z-50 bg-black flex flex-col"
           >
             <div className="flex items-center justify-between p-4 bg-black/50">
-              <h2 className="text-white font-bold">손바닥 촬영</h2>
+              <h2 className="text-white font-bold">
+                {currentHandType === 'dominant'
+                  ? `${userInfo.dominantHand === 'right' ? '오른손' : '왼손'} (주사용 손) 촬영`
+                  : `${userInfo.dominantHand === 'right' ? '왼손' : '오른손'} (보조 손) 촬영`
+                }
+              </h2>
               <button
                 onClick={stopCamera}
                 className="p-2 rounded-full bg-white/10 text-white"
@@ -403,12 +456,19 @@ export default function HomePage() {
               {/* 가이드 오버레이 */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-72 h-96 border-2 border-amber-400/50 rounded-3xl flex items-center justify-center">
-                  <Hand className="w-24 h-24 text-amber-400/30" />
+                  <Hand className={`w-24 h-24 text-amber-400/30 ${
+                    (currentHandType === 'dominant' && userInfo.dominantHand === 'left') ||
+                    (currentHandType === 'nonDominant' && userInfo.dominantHand === 'right')
+                      ? 'scale-x-[-1]' : ''
+                  }`} />
                 </div>
               </div>
               <div className="absolute bottom-4 left-4 right-4 text-center space-y-2">
                 <p className="text-white text-base font-bold bg-amber-600/80 rounded-lg px-3 py-2">
-                  👋 오른손잡이 → 오른손 / 왼손잡이 → 왼손
+                  {currentHandType === 'dominant'
+                    ? `👋 ${userInfo.dominantHand === 'right' ? '오른손' : '왼손'}을 촬영해주세요 (현재/미래)`
+                    : `👋 ${userInfo.dominantHand === 'right' ? '왼손' : '오른손'}을 촬영해주세요 (타고난 성향)`
+                  }
                 </p>
                 <p className="text-amber-200 text-sm bg-black/50 rounded-lg px-3 py-2">
                   손바닥을 가이드 안에 맞추고 촬영하세요
@@ -585,7 +645,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Upload Section */}
+      {/* Main Section - 단계별 UI */}
       <div className="max-w-4xl mx-auto px-4 -mt-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -593,8 +653,337 @@ export default function HomePage() {
           transition={{ delay: 0.2 }}
           className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 sm:p-10 border border-purple-500/20"
         >
+          {/* 단계 표시 */}
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+              currentStep === 'userInfo' ? 'bg-amber-500 text-slate-900' : 'bg-purple-500/20 text-purple-300'
+            }`}>
+              <User className="w-4 h-4" />
+              <span>1. 정보 입력</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-purple-500" />
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+              currentStep === 'upload' ? 'bg-amber-500 text-slate-900' : 'bg-purple-500/20 text-purple-300'
+            }`}>
+              <Camera className="w-4 h-4" />
+              <span>2. 손금 촬영</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-purple-500" />
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+              currentStep === 'analyzing' ? 'bg-amber-500 text-slate-900' : 'bg-purple-500/20 text-purple-300'
+            }`}>
+              <Sparkles className="w-4 h-4" />
+              <span>3. AI 분석</span>
+            </div>
+          </div>
+
           <AnimatePresence mode="wait">
-            {isAnalyzing ? (
+            {/* STEP 1: 사용자 정보 입력 */}
+            {currentStep === 'userInfo' && (
+              <motion.div
+                key="userInfo"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="space-y-6"
+              >
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl font-bold text-white mb-2">기본 정보 입력</h2>
+                  <p className="text-purple-300 text-sm">더 정확한 손금 분석을 위해 정보를 입력해주세요</p>
+                </div>
+
+                {/* 성별 선택 */}
+                <div>
+                  <label className="block text-purple-200 mb-3 font-medium">성별</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { value: 'male', label: '남성', icon: '👨' },
+                      { value: 'female', label: '여성', icon: '👩' },
+                      { value: 'other', label: '기타', icon: '🧑' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setUserInfo(prev => ({ ...prev, gender: option.value as UserInfo['gender'] }))}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                          userInfo.gender === option.value
+                            ? 'border-amber-400 bg-amber-400/20 text-white'
+                            : 'border-purple-500/30 bg-purple-500/10 text-purple-200 hover:border-purple-400'
+                        }`}
+                      >
+                        <span className="text-2xl block mb-1">{option.icon}</span>
+                        <span className="font-medium">{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 나이 입력 */}
+                <div>
+                  <label className="block text-purple-200 mb-3 font-medium">나이</label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="10"
+                      max="80"
+                      value={userInfo.age}
+                      onChange={(e) => setUserInfo(prev => ({ ...prev, age: parseInt(e.target.value) }))}
+                      className="flex-1 h-2 bg-purple-900 rounded-lg appearance-none cursor-pointer
+                               [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6
+                               [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full
+                               [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:cursor-pointer"
+                    />
+                    <div className="w-20 text-center">
+                      <span className="text-3xl font-bold text-amber-400">{userInfo.age}</span>
+                      <span className="text-purple-300 text-sm ml-1">세</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-xs text-purple-400 mt-1">
+                    <span>10세</span>
+                    <span>80세</span>
+                  </div>
+                </div>
+
+                {/* 주사용 손 선택 */}
+                <div>
+                  <label className="block text-purple-200 mb-3 font-medium">주로 사용하는 손</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { value: 'right', label: '오른손잡이', icon: '🤚', desc: '오른손이 주사용 손' },
+                      { value: 'left', label: '왼손잡이', icon: '✋', desc: '왼손이 주사용 손' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setUserInfo(prev => ({ ...prev, dominantHand: option.value as UserInfo['dominantHand'] }))}
+                        className={`p-4 rounded-xl border-2 transition-all text-left ${
+                          userInfo.dominantHand === option.value
+                            ? 'border-amber-400 bg-amber-400/20'
+                            : 'border-purple-500/30 bg-purple-500/10 hover:border-purple-400'
+                        }`}
+                      >
+                        <span className="text-3xl block mb-2">{option.icon}</span>
+                        <span className="font-bold text-white block">{option.label}</span>
+                        <span className="text-purple-300 text-xs">{option.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 안내 메시지 */}
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-400 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="text-blue-200 font-medium mb-1">왜 이 정보가 필요한가요?</p>
+                      <ul className="text-blue-300/80 space-y-1">
+                        <li>• 성별/나이에 따라 손금 해석이 달라집니다</li>
+                        <li>• 주사용 손 = 현재/미래, 비주사용 손 = 타고난 성향</li>
+                        <li>• 더 정확하고 개인화된 분석을 제공합니다</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 다음 단계 버튼 */}
+                <button
+                  onClick={() => setCurrentStep('upload')}
+                  className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500
+                           text-slate-900 font-bold text-lg flex items-center justify-center gap-2
+                           hover:from-amber-400 hover:to-orange-400 transition-all"
+                >
+                  다음 단계로
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </motion.div>
+            )}
+
+            {/* STEP 2: 손금 촬영/업로드 */}
+            {currentStep === 'upload' && !isAnalyzing && (
+              <motion.div
+                key="upload"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="space-y-6"
+              >
+                <div className="text-center mb-4">
+                  <h2 className="text-2xl font-bold text-white mb-2">손금 촬영</h2>
+                  <p className="text-purple-300 text-sm">
+                    {userInfo.dominantHand === 'right' ? '오른손' : '왼손'}(주사용 손)을 촬영해주세요
+                  </p>
+                </div>
+
+                {/* 뒤로 가기 */}
+                <button
+                  onClick={() => setCurrentStep('userInfo')}
+                  className="flex items-center gap-2 text-purple-300 hover:text-white transition mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="text-sm">정보 수정하기</span>
+                </button>
+
+                {/* 현재 사용자 정보 요약 */}
+                <div className="flex items-center justify-center gap-4 p-3 rounded-xl bg-purple-500/10 text-sm">
+                  <span className="text-purple-200">
+                    {userInfo.gender === 'male' ? '👨 남성' : userInfo.gender === 'female' ? '👩 여성' : '🧑 기타'}
+                  </span>
+                  <span className="text-purple-400">|</span>
+                  <span className="text-purple-200">{userInfo.age}세</span>
+                  <span className="text-purple-400">|</span>
+                  <span className="text-purple-200">{userInfo.dominantHand === 'right' ? '오른손잡이' : '왼손잡이'}</span>
+                </div>
+
+                {/* 주사용 손 촬영 (필수) */}
+                <div className="p-4 rounded-xl border-2 border-amber-500/50 bg-amber-500/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Hand className="w-5 h-5 text-amber-400" />
+                      <span className="font-bold text-white">
+                        {userInfo.dominantHand === 'right' ? '오른손' : '왼손'} (주사용 손)
+                      </span>
+                      <span className="text-xs bg-amber-500 text-slate-900 px-2 py-0.5 rounded-full">필수</span>
+                    </div>
+                    {handImages.dominant && (
+                      <Check className="w-5 h-5 text-green-400" />
+                    )}
+                  </div>
+                  <p className="text-amber-200/70 text-sm mb-4">현재 상태와 미래의 가능성을 보여줍니다</p>
+
+                  {handImages.dominant ? (
+                    <div className="relative">
+                      <img
+                        src={handImages.dominant}
+                        alt="주사용 손"
+                        className="w-full h-40 object-cover rounded-xl"
+                      />
+                      <button
+                        onClick={() => setHandImages(prev => ({ ...prev, dominant: '' }))}
+                        className="absolute top-2 right-2 p-2 rounded-full bg-red-500/80 text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => {
+                          setCurrentHandType('dominant');
+                          startCamera();
+                        }}
+                        className="flex flex-col items-center gap-2 p-4 rounded-xl bg-amber-500/20
+                                 border border-amber-500/30 hover:border-amber-400 transition"
+                      >
+                        <Camera className="w-8 h-8 text-amber-400" />
+                        <span className="text-white text-sm">카메라 촬영</span>
+                      </button>
+                      <div
+                        {...getRootProps()}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-xl cursor-pointer
+                                  bg-purple-500/20 border border-purple-500/30 hover:border-purple-400 transition
+                                  ${isDragActive ? 'border-amber-400 bg-amber-400/10' : ''}`}
+                      >
+                        <input {...getInputProps()} />
+                        <Image className="w-8 h-8 text-purple-400" />
+                        <span className="text-white text-sm">갤러리 선택</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 비주사용 손 촬영 (선택) */}
+                <div className="p-4 rounded-xl border border-purple-500/30 bg-purple-500/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Hand className={`w-5 h-5 text-purple-400 ${userInfo.dominantHand === 'right' ? 'scale-x-[-1]' : ''}`} />
+                      <span className="font-bold text-white">
+                        {userInfo.dominantHand === 'right' ? '왼손' : '오른손'} (보조 손)
+                      </span>
+                      <span className="text-xs bg-purple-500/50 text-purple-200 px-2 py-0.5 rounded-full">선택</span>
+                    </div>
+                    {handImages.nonDominant && (
+                      <Check className="w-5 h-5 text-green-400" />
+                    )}
+                  </div>
+                  <p className="text-purple-300/70 text-sm mb-4">타고난 성향과 잠재력을 보여줍니다 (더 정확한 분석)</p>
+
+                  {handImages.nonDominant ? (
+                    <div className="relative">
+                      <img
+                        src={handImages.nonDominant}
+                        alt="보조 손"
+                        className="w-full h-40 object-cover rounded-xl"
+                      />
+                      <button
+                        onClick={() => setHandImages(prev => ({ ...prev, nonDominant: '' }))}
+                        className="absolute top-2 right-2 p-2 rounded-full bg-red-500/80 text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setCurrentHandType('nonDominant');
+                        startCamera();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 p-3 rounded-xl
+                               bg-purple-500/20 border border-dashed border-purple-500/50
+                               hover:border-purple-400 transition text-purple-300"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span>보조 손 추가하기 (선택사항)</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* 촬영 가이드 버튼 */}
+                <button
+                  onClick={() => setShowPhotoTips(true)}
+                  className="w-full p-4 rounded-xl bg-purple-500/10 border border-purple-500/20
+                           hover:border-purple-400/50 transition flex items-center justify-center gap-2"
+                >
+                  <Lightbulb className="w-5 h-5 text-amber-400" />
+                  <span className="text-purple-200">손바닥 촬영 가이드 보기</span>
+                </button>
+
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-xl bg-red-500/20 border border-red-500/50 flex items-center gap-3"
+                  >
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <p className="text-red-200">{error}</p>
+                  </motion.div>
+                )}
+
+                {/* 분석 시작 버튼 */}
+                <button
+                  onClick={async () => {
+                    if (!handImages.dominant) {
+                      setError('주사용 손 사진을 먼저 촬영해주세요.');
+                      return;
+                    }
+                    // base64 이미지를 File로 변환
+                    const response = await fetch(handImages.dominant);
+                    const blob = await response.blob();
+                    const file = new File([blob], 'dominant-hand.jpg', { type: 'image/jpeg' });
+                    await processImage(file);
+                  }}
+                  disabled={!handImages.dominant}
+                  className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
+                    handImages.dominant
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 hover:from-amber-400 hover:to-orange-400'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Sparkles className="w-5 h-5" />
+                  AI 손금 분석 시작하기
+                </button>
+              </motion.div>
+            )}
+
+            {/* STEP 3: 분석 중 */}
+            {isAnalyzing && (
               <motion.div
                 key="analyzing"
                 initial={{ opacity: 0 }}
@@ -632,89 +1021,15 @@ export default function HomePage() {
                 </div>
                 <p className="text-lg text-purple-200 mb-2">{progressText}</p>
                 <p className="text-sm text-purple-400">잠시만 기다려주세요...</p>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="upload"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                {/* 카메라 & 갤러리 버튼 */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <button
-                    onClick={startCamera}
-                    className="flex flex-col items-center gap-3 p-6 rounded-2xl
-                             bg-gradient-to-br from-amber-500/20 to-orange-500/20
-                             border border-amber-500/30 hover:border-amber-400
-                             transition-all hover:scale-[1.02]"
-                  >
-                    <Camera className="w-12 h-12 text-amber-400" />
-                    <span className="text-white font-bold">카메라로 촬영</span>
-                    <span className="text-amber-200/70 text-xs">직접 손바닥을 찍어보세요</span>
-                  </button>
 
-                  <div
-                    {...getRootProps()}
-                    className={`flex flex-col items-center gap-3 p-6 rounded-2xl cursor-pointer
-                              bg-gradient-to-br from-purple-500/20 to-indigo-500/20
-                              border border-purple-500/30 hover:border-purple-400
-                              transition-all hover:scale-[1.02]
-                              ${isDragActive ? 'border-amber-400 bg-amber-400/10' : ''}`}
-                  >
-                    <input {...getInputProps()} />
-                    <Image className="w-12 h-12 text-purple-400" />
-                    <span className="text-white font-bold">갤러리에서 선택</span>
-                    <span className="text-purple-200/70 text-xs">이미지를 업로드하세요</span>
-                  </div>
-                </div>
-
-                {/* 촬영 가이드 버튼 */}
-                <button
-                  onClick={() => setShowPhotoTips(true)}
-                  className="w-full p-4 rounded-xl bg-purple-500/10 border border-purple-500/20
-                           hover:border-purple-400/50 transition flex items-center justify-center gap-2"
-                >
-                  <Lightbulb className="w-5 h-5 text-amber-400" />
-                  <span className="text-purple-200">손바닥 촬영 가이드 보기</span>
-                  <ChevronRight className="w-4 h-4 text-purple-400" />
-                </button>
-
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-4 p-4 rounded-xl bg-red-500/20 border border-red-500/50 flex items-center gap-3"
-                  >
-                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                    <p className="text-red-200">{error}</p>
-                  </motion.div>
-                )}
-
-                {/* 간단 팁 */}
-                <div className="mt-6 p-4 rounded-xl bg-purple-500/10">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Info className="w-5 h-5 text-amber-400" />
-                    <h4 className="font-medium text-white">빠른 팁</h4>
-                  </div>
-                  <ul className="grid sm:grid-cols-2 gap-2">
-                    <li className="flex items-start gap-2 text-sm text-purple-200">
-                      <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                      밝은 조명에서 촬영하세요
-                    </li>
-                    <li className="flex items-start gap-2 text-sm text-purple-200">
-                      <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                      손바닥 + 손가락 전체를 펴세요
-                    </li>
-                    <li className="flex items-start gap-2 text-sm text-purple-200">
-                      <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                      카메라를 수직으로 내려보세요
-                    </li>
-                    <li className="flex items-start gap-2 text-sm text-purple-200">
-                      <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                      손가락 간격을 벌리면 더 정확해요
-                    </li>
-                  </ul>
+                {/* 분석 정보 표시 */}
+                <div className="mt-6 p-4 rounded-xl bg-purple-500/10 text-sm">
+                  <p className="text-purple-300">
+                    {userInfo.gender === 'male' ? '남성' : userInfo.gender === 'female' ? '여성' : '기타'} · {userInfo.age}세 · {userInfo.dominantHand === 'right' ? '오른손잡이' : '왼손잡이'}
+                  </p>
+                  {handImages.nonDominant && (
+                    <p className="text-green-400 mt-1">✓ 양손 분석 진행 중</p>
+                  )}
                 </div>
               </motion.div>
             )}
