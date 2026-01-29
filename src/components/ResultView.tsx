@@ -129,10 +129,15 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
     setCurrentSection(null);
   };
 
-  // 전체 결과 읽기 텍스트 생성 (모든 섹션 포함)
+  // 전체 결과 읽기 텍스트 생성 (모든 섹션 빠짐없이 포함)
   const generateFullReadingText = () => {
-    let text = `손금 분석 결과를 처음부터 끝까지 알려드리겠습니다. `;
+    let text = `손금 분석 결과를 처음부터 끝까지 상세히 알려드리겠습니다. `;
     text += `종합 점수는 100점 만점에 ${overallScore}점입니다. `;
+
+    // 0. 특별 노트 (있다면 먼저)
+    if (interpretation?.specialNotes) {
+      text += `먼저 특별히 주목할 점입니다. ${interpretation.specialNotes} `;
+    }
 
     // 1. 성격 분석
     text += `첫 번째, 성격 분석입니다. `;
@@ -140,100 +145,124 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
       text += `${interpretation.personality.summary} `;
     }
     if (interpretation?.personality?.detailedAnalysis) {
-      text += `${interpretation.personality.detailedAnalysis} `;
+      text += `상세 분석입니다. ${interpretation.personality.detailedAnalysis} `;
     }
     if (interpretation?.personality?.strengths?.length > 0) {
-      text += `당신의 강점은 ${interpretation.personality.strengths.join(', ')} 입니다. `;
+      text += `당신의 강점입니다. 첫째, ${interpretation.personality.strengths.join('. 다음으로, ')}. `;
     }
     if (interpretation?.personality?.weaknesses?.length > 0) {
-      text += `보완할 점은 ${interpretation.personality.weaknesses.join(', ')} 입니다. `;
+      text += `보완할 점입니다. ${interpretation.personality.weaknesses.join('. ')}. `;
     }
     if (interpretation?.personality?.hiddenTalents?.length > 0) {
-      text += `숨겨진 재능으로는 ${interpretation.personality.hiddenTalents.join(', ')} 이 있습니다. `;
+      text += `숨겨진 재능입니다. ${interpretation.personality.hiddenTalents.join('. ')}. `;
     }
 
     // 2. 연애운
-    text += `두 번째, 연애운입니다. 점수는 ${interpretation?.loveReading?.score || 0}점입니다. `;
+    text += `두 번째, 연애운입니다. 점수는 100점 만점에 ${interpretation?.loveReading?.score || 0}점입니다. `;
     if (interpretation?.loveReading?.currentStatus) {
-      text += `현재 연애 상태: ${interpretation.loveReading.currentStatus} `;
+      text += `현재 상태입니다. ${interpretation.loveReading.currentStatus} `;
     }
     if (interpretation?.loveReading?.loveStyle) {
-      text += `${interpretation.loveReading.loveStyle} `;
+      text += `연애 스타일입니다. ${interpretation.loveReading.loveStyle} `;
     }
     if (interpretation?.loveReading?.idealPartner) {
-      text += `이상적인 파트너: ${interpretation.loveReading.idealPartner} `;
+      text += `이상적인 파트너입니다. ${interpretation.loveReading.idealPartner} `;
     }
     if (interpretation?.loveReading?.marriageProspect) {
-      text += `결혼 전망: ${interpretation.loveReading.marriageProspect} `;
+      text += `결혼 전망입니다. ${interpretation.loveReading.marriageProspect} `;
+    }
+    if (interpretation?.loveReading?.timing) {
+      text += `시기에 대해서입니다. ${interpretation.loveReading.timing} `;
     }
     if (interpretation?.loveReading?.advice) {
-      text += `연애 조언: ${interpretation.loveReading.advice} `;
+      text += `연애 조언입니다. ${interpretation.loveReading.advice} `;
     }
 
     // 3. 직업운
-    text += `세 번째, 직업운입니다. 점수는 ${interpretation?.careerReading?.score || 0}점입니다. `;
+    text += `세 번째, 직업운입니다. 점수는 100점 만점에 ${interpretation?.careerReading?.score || 0}점입니다. `;
     if (interpretation?.careerReading?.workStyle) {
-      text += `${interpretation.careerReading.workStyle} `;
+      text += `업무 스타일입니다. ${interpretation.careerReading.workStyle} `;
     }
     if (interpretation?.careerReading?.naturalTalents?.length > 0) {
-      text += `타고난 재능은 ${interpretation.careerReading.naturalTalents.join(', ')} 입니다. `;
+      text += `타고난 재능입니다. ${interpretation.careerReading.naturalTalents.join('. ')}. `;
     }
     if (interpretation?.careerReading?.suitableCareers?.length > 0) {
-      text += `적합한 직업으로는 ${interpretation.careerReading.suitableCareers.join(', ')} 등이 있습니다. `;
+      text += `적합한 직업입니다. ${interpretation.careerReading.suitableCareers.join(', ')} 등이 있습니다. `;
     }
     if (interpretation?.careerReading?.leadershipPotential) {
-      text += `리더십 잠재력: ${interpretation.careerReading.leadershipPotential} `;
+      text += `리더십 잠재력입니다. ${interpretation.careerReading.leadershipPotential} `;
+    }
+    if (interpretation?.careerReading?.businessAbility) {
+      text += `사업 능력입니다. ${interpretation.careerReading.businessAbility} `;
+    }
+    if (interpretation?.careerReading?.communicationSkill) {
+      text += `소통 능력입니다. ${interpretation.careerReading.communicationSkill} `;
     }
     if (interpretation?.careerReading?.careerAdvice) {
-      text += `커리어 조언: ${interpretation.careerReading.careerAdvice} `;
+      text += `커리어 조언입니다. ${interpretation.careerReading.careerAdvice} `;
     }
 
     // 4. 재물운
-    text += `네 번째, 재물운입니다. 점수는 ${interpretation?.wealthReading?.score || 0}점입니다. `;
+    text += `네 번째, 재물운입니다. 점수는 100점 만점에 ${interpretation?.wealthReading?.score || 0}점입니다. `;
     if (interpretation?.wealthReading?.moneyMakingAbility) {
-      text += `${interpretation.wealthReading.moneyMakingAbility} `;
+      text += `재물 획득 능력입니다. ${interpretation.wealthReading.moneyMakingAbility} `;
+    }
+    if (interpretation?.wealthReading?.wealthPotential) {
+      text += `재물운 잠재력입니다. ${interpretation.wealthReading.wealthPotential} `;
     }
     if (interpretation?.wealthReading?.savingTendency) {
-      text += `저축 성향: ${interpretation.wealthReading.savingTendency} `;
+      text += `저축 성향입니다. ${interpretation.wealthReading.savingTendency} `;
     }
     if (interpretation?.wealthReading?.investmentStyle) {
-      text += `투자 스타일: ${interpretation.wealthReading.investmentStyle} `;
+      text += `투자 스타일입니다. ${interpretation.wealthReading.investmentStyle} `;
     }
     if (interpretation?.wealthReading?.luckyFields?.length > 0) {
-      text += `행운의 분야는 ${interpretation.wealthReading.luckyFields.join(', ')} 입니다. `;
+      text += `행운의 분야입니다. ${interpretation.wealthReading.luckyFields.join(', ')}. `;
     }
     if (interpretation?.wealthReading?.financialAdvice) {
-      text += `재정 조언: ${interpretation.wealthReading.financialAdvice} `;
+      text += `재정 조언입니다. ${interpretation.wealthReading.financialAdvice} `;
     }
 
     // 5. 건강운
-    text += `다섯 번째, 건강운입니다. 점수는 ${interpretation?.healthReading?.score || 0}점입니다. `;
+    text += `다섯 번째, 건강운입니다. 점수는 100점 만점에 ${interpretation?.healthReading?.score || 0}점입니다. `;
+    if (interpretation?.healthReading?.constitution) {
+      text += `체질입니다. ${interpretation.healthReading.constitution} `;
+    }
+    if (interpretation?.healthReading?.vitality) {
+      text += `생명력입니다. ${interpretation.healthReading.vitality} `;
+    }
     if (interpretation?.healthReading?.strongPoints?.length > 0) {
-      text += `건강한 부분은 ${interpretation.healthReading.strongPoints.join(', ')} 입니다. `;
+      text += `건강 강점입니다. ${interpretation.healthReading.strongPoints.join('. ')}. `;
     }
     if (interpretation?.healthReading?.concernAreas?.length > 0) {
-      text += `주의할 부분은 ${interpretation.healthReading.concernAreas.join(', ')} 입니다. `;
+      text += `관리 포인트입니다. ${interpretation.healthReading.concernAreas.join('. ')}. `;
     }
     if (interpretation?.healthReading?.stressManagement) {
-      text += `스트레스 관리: ${interpretation.healthReading.stressManagement} `;
+      text += `스트레스 관리입니다. ${interpretation.healthReading.stressManagement} `;
+    }
+    if (interpretation?.healthReading?.longevity) {
+      text += `장수 전망입니다. ${interpretation.healthReading.longevity} `;
     }
     if (interpretation?.healthReading?.recommendations?.length > 0) {
-      text += `건강 권장사항: ${interpretation.healthReading.recommendations.join('. ')} `;
+      text += `건강 권장사항입니다. ${interpretation.healthReading.recommendations.join('. ')}. `;
     }
 
     // 6. 인생 여정
     text += `여섯 번째, 인생 여정입니다. `;
     if (interpretation?.lifePath?.earlyLife) {
-      text += `초년기: ${interpretation.lifePath.earlyLife} `;
+      text += `초년기, 0세부터 30세까지입니다. ${interpretation.lifePath.earlyLife} `;
     }
     if (interpretation?.lifePath?.middleLife) {
-      text += `중년기: ${interpretation.lifePath.middleLife} `;
+      text += `중년기, 30세부터 50세까지입니다. ${interpretation.lifePath.middleLife} `;
     }
     if (interpretation?.lifePath?.laterLife) {
-      text += `후년기: ${interpretation.lifePath.laterLife} `;
+      text += `후년기, 50세 이후입니다. ${interpretation.lifePath.laterLife} `;
+    }
+    if (interpretation?.lifePath?.majorTurningPoints?.length > 0) {
+      text += `인생 전환점입니다. ${interpretation.lifePath.majorTurningPoints.join('. ')}. `;
     }
     if (interpretation?.lifePath?.lifeTheme) {
-      text += `인생 테마: ${interpretation.lifePath.lifeTheme} `;
+      text += `인생 테마입니다. ${interpretation.lifePath.lifeTheme} `;
     }
 
     // 7. 행운의 요소
@@ -247,23 +276,32 @@ export default function ResultView({ reading, onBack }: ResultViewProps) {
     if (interpretation?.luckyElements?.directions?.length > 0) {
       text += `행운의 방향은 ${interpretation.luckyElements.directions.join(', ')} 입니다. `;
     }
+    if (interpretation?.luckyElements?.stones?.length > 0) {
+      text += `행운의 보석은 ${interpretation.luckyElements.stones.join(', ')} 입니다. `;
+    }
+    if (interpretation?.luckyElements?.days?.length > 0) {
+      text += `행운의 요일은 ${interpretation.luckyElements.days.join(', ')} 입니다. `;
+    }
 
     // 8. 조언
-    text += `마지막으로, 조언입니다. `;
+    text += `여덟 번째, 조언입니다. `;
     if (interpretation?.advice?.immediate) {
-      text += `즉시 실천할 것: ${interpretation.advice.immediate} `;
+      text += `지금 바로 실천할 것입니다. ${interpretation.advice.immediate} `;
     }
     if (interpretation?.advice?.shortTerm) {
-      text += `단기 조언: ${interpretation.advice.shortTerm} `;
+      text += `단기 조언, 향후 3개월입니다. ${interpretation.advice.shortTerm} `;
     }
     if (interpretation?.advice?.longTerm) {
-      text += `장기 조언: ${interpretation.advice.longTerm} `;
+      text += `장기 조언, 향후 5년입니다. ${interpretation.advice.longTerm} `;
+    }
+    if (interpretation?.advice?.warnings?.length > 0) {
+      text += `유의사항입니다. ${interpretation.advice.warnings.join('. ')}. `;
     }
     if (interpretation?.advice?.affirmation) {
-      text += `오늘의 긍정 확언: ${interpretation.advice.affirmation}`;
+      text += `마지막으로 오늘의 긍정 확언입니다. ${interpretation.advice.affirmation} `;
     }
 
-    text += ` 이상으로 손금 분석을 마칩니다. 감사합니다.`;
+    text += `이상으로 손금 분석 결과를 모두 읽어드렸습니다. 좋은 하루 되세요.`;
 
     return text;
   };

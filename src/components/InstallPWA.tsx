@@ -16,6 +16,17 @@ export default function InstallPWA() {
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
+    // 서비스 워커 등록
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('PalmSeer: 서비스 워커 등록 성공:', registration.scope);
+        })
+        .catch((error) => {
+          console.log('PalmSeer: 서비스 워커 등록 실패:', error);
+        });
+    }
+
     // iOS 감지
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
