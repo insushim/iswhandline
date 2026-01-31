@@ -695,11 +695,10 @@ export default function HomePage() {
                 {/* 성별 선택 */}
                 <div>
                   <label className="block text-purple-200 mb-3 font-medium">성별</label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {[
                       { value: 'male', label: '남성', icon: '👨' },
-                      { value: 'female', label: '여성', icon: '👩' },
-                      { value: 'other', label: '기타', icon: '🧑' }
+                      { value: 'female', label: '여성', icon: '👩' }
                     ].map((option) => (
                       <button
                         key={option.value}
@@ -724,7 +723,7 @@ export default function HomePage() {
                     <input
                       type="range"
                       min="10"
-                      max="80"
+                      max="120"
                       value={userInfo.age}
                       onChange={(e) => setUserInfo(prev => ({ ...prev, age: parseInt(e.target.value) }))}
                       className="flex-1 h-2 bg-purple-900 rounded-lg appearance-none cursor-pointer
@@ -739,7 +738,7 @@ export default function HomePage() {
                   </div>
                   <div className="flex justify-between text-xs text-purple-400 mt-1">
                     <span>10세</span>
-                    <span>80세</span>
+                    <span>120세</span>
                   </div>
                 </div>
 
@@ -824,7 +823,7 @@ export default function HomePage() {
                 {/* 현재 사용자 정보 요약 */}
                 <div className="flex items-center justify-center gap-4 p-3 rounded-xl bg-purple-500/10 text-sm">
                   <span className="text-purple-200">
-                    {userInfo.gender === 'male' ? '👨 남성' : userInfo.gender === 'female' ? '👩 여성' : '🧑 기타'}
+                    {userInfo.gender === 'male' ? '👨 남성' : '👩 여성'}
                   </span>
                   <span className="text-purple-400">|</span>
                   <span className="text-purple-200">{userInfo.age}세</span>
@@ -1025,7 +1024,7 @@ export default function HomePage() {
                 {/* 분석 정보 표시 */}
                 <div className="mt-6 p-4 rounded-xl bg-purple-500/10 text-sm">
                   <p className="text-purple-300">
-                    {userInfo.gender === 'male' ? '남성' : userInfo.gender === 'female' ? '여성' : '기타'} · {userInfo.age}세 · {userInfo.dominantHand === 'right' ? '오른손잡이' : '왼손잡이'}
+                    {userInfo.gender === 'male' ? '남성' : '여성'} · {userInfo.age}세 · {userInfo.dominantHand === 'right' ? '오른손잡이' : '왼손잡이'}
                   </p>
                   {handImages.nonDominant && (
                     <p className="text-green-400 mt-1">✓ 양손 분석 진행 중</p>
